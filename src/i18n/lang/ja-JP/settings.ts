@@ -79,6 +79,7 @@ export default {
     musicSources: '音源設定',
     musicSourcesDesc: '音楽解析に使用する音源プラットフォームを選択',
     musicSourcesWarning: '少なくとも1つの音源プラットフォームを選択する必要があります',
+    desktopOnlySource: 'この音源はデスクトップ版専用のため、モバイルでは利用できません',
     musicUnblockEnable: '音楽解析を有効にする',
     musicUnblockEnableDesc: '有効にすると、再生できない音楽の解析を試みます',
     configureMusicSources: '音源を設定',

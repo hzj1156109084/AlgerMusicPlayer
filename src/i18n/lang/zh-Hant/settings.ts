@@ -76,6 +76,7 @@ export default {
     musicSources: '音源設定',
     musicSourcesDesc: '選擇音樂解析使用的音源平台',
     musicSourcesWarning: '至少需要選擇一個音源平台',
+    desktopOnlySource: '該音源依賴桌面端，行動端無法使用',
     musicUnblockEnable: '啟用音樂解析',
     musicUnblockEnableDesc: '開啟後將嘗試解析無法播放的音樂',
     configureMusicSources: '設定音源',

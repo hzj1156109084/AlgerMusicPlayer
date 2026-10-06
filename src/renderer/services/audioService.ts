@@ -74,45 +74,57 @@ class AudioService {
   }
 
   private initMediaSession() {
-    navigator.mediaSession.setActionHandler('play', () => {
+    if (!('mediaSession' in navigator)) return;
+
+    // Android WebView 中部分 action（seekto/seekbackward/seekforward）可能不被支持，
+    // setActionHandler 会抛 NotSupportedError，必须逐个隔离，否则会中断后续注册
+    const setAction = (action: MediaSessionAction, handler: MediaSessionActionHandler) => {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler);
+      } catch (error) {
+        console.warn(`[mediaSession] 不支持的操作: ${action}`, error);
+      }
+    };
+
+    setAction('play', () => {
       this.currentSound?.play();
     });
 
-    navigator.mediaSession.setActionHandler('pause', () => {
+    setAction('pause', () => {
       this.currentSound?.pause();
     });
 
-    navigator.mediaSession.setActionHandler('stop', () => {
+    setAction('stop', () => {
       this.stop();
     });
 
-    navigator.mediaSession.setActionHandler('seekto', (event) => {
+    setAction('seekto', (event) => {
       if (event.seekTime && this.currentSound) {
         // this.currentSound.seek(event.seekTime);
         this.seek(event.seekTime);
       }
     });
 
-    navigator.mediaSession.setActionHandler('seekbackward', (event) => {
+    setAction('seekbackward', (event) => {
       if (this.currentSound) {
         const currentTime = this.currentSound.seek() as number;
         this.seek(currentTime - (event.seekOffset || 10));
       }
     });
 
-    navigator.mediaSession.setActionHandler('seekforward', (event) => {
+    setAction('seekforward', (event) => {
       if (this.currentSound) {
         const currentTime = this.currentSound.seek() as number;
         this.seek(currentTime + (event.seekOffset || 10));
       }
     });
 
-    navigator.mediaSession.setActionHandler('previoustrack', () => {
+    setAction('previoustrack', () => {
       // 这里需要通过回调通知外部
       this.emit('previoustrack');
     });
 
-    navigator.mediaSession.setActionHandler('nexttrack', () => {
+    setAction('nexttrack', () => {
       // 这里需要通过回调通知外部
       this.emit('nexttrack');
     });

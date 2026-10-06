@@ -297,6 +297,7 @@ import {
 import { useSettingsStore } from '@/store';
 import type { LxMusicScriptConfig, LxScriptInfo, LxSourceKey } from '@/types/lxMusic';
 import { type Platform } from '@/types/music';
+import { isElectron } from '@/utils';
 import { useMusicSources } from '@/utils/musicSourceConfig';
 
 // ==================== Props & Emits ====================
@@ -406,11 +407,66 @@ const toggleSource = (sourceKey: string) => {
 };
 
 /**
+ * 打开系统文件选择器读取文本文件。
+ * Electron 下没有原生对话框可用（`window.api` 只有主进程能提供），
+ * 移动端/Web 走 `<input type="file">` —— Capacitor 的 BridgeWebChromeClient
+ * 实现了 onShowFileChooser，会唤起系统文件选择器。
+ * 用户取消时多数浏览器不触发事件，靠 `cancel` 事件兜底（Chrome 113+）。
+ */
+const pickLocalFile = (accept: string): Promise<{ name: string; content: string } | null> => {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.style.display = 'none';
+    document.body.appendChild(input);
+
+    const cleanup = () => input.remove();
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      cleanup();
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      try {
+        resolve({ name: file.name, content: await file.text() });
+      } catch (error) {
+        reject(error);
+      }
+    };
+    input.oncancel = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    input.click();
+  });
+};
+
+/**
+ * 非 Electron 环境下读取自定义API插件配置（等价于主进程的 import-custom-api-plugin）
+ */
+const pickCustomApiPluginInWeb = async (): Promise<{ name: string; content: string } | null> => {
+  const file = await pickLocalFile('.json,application/json');
+  if (!file) return null;
+
+  const pluginData = JSON.parse(file.content);
+  if (!pluginData.name || !pluginData.apiUrl) {
+    throw new Error('无效的插件文件，缺少 name 或 apiUrl 字段。');
+  }
+  return { name: pluginData.name, content: file.content };
+};
+
+/**
  * 导入自定义API插件
  */
 const importPlugin = async () => {
   try {
-    const result = await window.api.importCustomApiPlugin();
+    const result = isElectron
+      ? await window.api.importCustomApiPlugin()
+      : await pickCustomApiPluginInWeb();
     if (result && result.name && result.content) {
       settingsStore.setCustomApiPlugin(result);
       message.success(t('settings.playback.customApi.importSuccess', { name: result.name }));
@@ -430,7 +486,9 @@ const importPlugin = async () => {
  */
 const importLxMusicScript = async () => {
   try {
-    const result = await window.api.importLxMusicScript();
+    const result = isElectron
+      ? await window.api.importLxMusicScript()
+      : await pickLocalFile('.js,text/javascript,application/javascript');
     if (result && result.content) {
       await addLxMusicScript(result.content);
     }

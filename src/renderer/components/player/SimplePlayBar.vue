@@ -50,6 +50,10 @@
         </div>
 
         <div class="right-controls">
+          <!-- 音源切换（移动端也可用：自定义API 走普通 axios） -->
+          <div v-if="playMusic?.id" class="reparse-slot">
+            <reparse-popover />
+          </div>
           <!-- 播放列表按钮 -->
           <button class="control-btn small-btn" @click="openPlayListDrawer">
             <i class="iconfont icon-list"></i>
@@ -80,6 +84,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 
+import ReparsePopover from '@/components/player/ReparsePopover.vue';
 import { allTime, nowTime, playMusic } from '@/hooks/MusicHook';
 import { usePlayMode } from '@/hooks/usePlayMode';
 import { audioService } from '@/services/audioService';
@@ -472,6 +477,16 @@ onMounted(() => {
   .left-controls,
   .right-controls {
     @apply flex items-center;
+  }
+
+  // reparse-popover 的触发器自带 mx-3，这里收窄以免挤占控制条
+  .reparse-slot {
+    @apply flex items-center justify-center cursor-pointer;
+    color: var(--text-color);
+
+    :deep(.iconfont) {
+      @apply text-2xl mx-0;
+    }
   }
 
   .center-controls {

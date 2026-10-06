@@ -2,6 +2,18 @@ import { computed } from 'vue';
 
 import { useSettingsStore } from '@/store';
 import type { Platform } from '@/types/music';
+import { isElectron } from '@/utils';
+
+/**
+ * 只依赖 Electron IPC 的音源。
+ * 这四个走 `musicParser.ts` 的 `getUnblockMusicAudio` → `window.api.unblockMusic`，
+ * 而那个 IPC 背后是主进程的 Node 包 `@unblockneteasemusic/server`（依赖 fs/http/crypto
+ * 等内置模块），不是能直接搬进渲染进程的东西，所以移动端/Web 上标记为不可用。
+ *
+ * 注意 **lxMusic 不在这张表里** —— `LxMusicSourceRunner.handleHttpRequest` 自带
+ * `fetch` 回退分支，端上是能跑的。见该文件 `hasMainProcessHttp` 那段。
+ */
+const ELECTRON_ONLY_SOURCES: Platform[] = ['migu', 'kugou', 'kuwo', 'pyncmd'];
 
 // ==================== 类型定义 ====================
 
@@ -52,6 +64,12 @@ export const useMusicSources = () => {
       } else if (source.key === 'custom') {
         available = Boolean(settingsStore.setData.customApiPlugin);
         if (!available) configHint = 'settings.playback.customApi.notImported';
+      }
+
+      // 已经配置好但端上跑不了的音源（如移动端选中的 lxMusic），改为提示"依赖桌面端"
+      if (!isElectron && ELECTRON_ONLY_SOURCES.includes(source.key)) {
+        available = false;
+        configHint = 'settings.playback.desktopOnlySource';
       }
 
       return { ...source, available, configHint };

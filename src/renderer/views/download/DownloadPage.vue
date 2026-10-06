@@ -459,7 +459,7 @@ import { useI18n } from 'vue-i18n';
 import { getMusicDetail } from '@/api/music';
 import { usePlayerStore } from '@/store/modules/player';
 import type { SongResult } from '@/types/music';
-import { getImgUrl } from '@/utils';
+import { getImgUrl, isElectron } from '@/utils';
 
 const { t } = useI18n();
 const playerStore = usePlayerStore();
@@ -789,6 +789,9 @@ watch(
 
 // 初始化
 onMounted(() => {
+  // 下载管理依赖 Electron 主进程（文件系统、IPC），非 Electron 环境（Android/Web）直接跳过
+  if (!isElectron) return;
+
   refreshDownloadedList();
 
   // 记录已处理的下载项，避免重复触发事件
@@ -1093,6 +1096,8 @@ watch(
 
 // 初始化
 onMounted(() => {
+  if (!isElectron) return;
+
   initDownloadSettings();
 });
 </script>

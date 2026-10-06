@@ -46,6 +46,10 @@
         <div class="mini-control-btn play" @click="playMusicEvent">
           <i class="iconfont icon" :class="play ? 'icon-stop' : 'icon-play'"></i>
         </div>
+        <!-- 音源切换 -->
+        <div v-if="playMusic?.id" class="mini-reparse-icon">
+          <reparse-popover />
+        </div>
         <i class="iconfont icon-list mini-list-icon" @click="openPlayListDrawer"></i>
       </div>
     </div>
@@ -65,6 +69,7 @@ import type { Ref } from 'vue';
 import { computed, inject, onMounted, ref, watch } from 'vue';
 
 import MusicFullWrapper from '@/components/lyric/MusicFullWrapper.vue';
+import ReparsePopover from '@/components/player/ReparsePopover.vue';
 import { artistList, playMusic, textColors } from '@/hooks/MusicHook';
 import { usePlayerStore } from '@/store/modules/player';
 import { useSettingsStore } from '@/store/modules/settings';
@@ -296,6 +301,16 @@ watch(
 
     .mini-playback-controls {
       @apply flex items-center;
+
+      // reparse-popover 的触发器自带 mx-3，这里收窄
+      .mini-reparse-icon {
+        @apply flex items-center justify-center p-1;
+        color: inherit;
+
+        :deep(.iconfont) {
+          @apply text-xl mx-0;
+        }
+      }
 
       .mini-control-btn {
         @apply flex items-center justify-center cursor-pointer transition;

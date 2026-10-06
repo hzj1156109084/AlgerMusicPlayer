@@ -22,6 +22,16 @@ const request = axios.create({
   withCredentials: true
 });
 
+// Android / 纯 Web 环境：不存在 Electron 内置的本地 API 服务，改用端内实现的网易云 API。
+// VITE_NCM_EMBEDDED 是构建期常量，桌面端构建时会被替换为 undefined，
+// 整个分支连同动态 import 都会被静态消除，不影响 Electron 打包体积。
+if (!isElectron && import.meta.env.VITE_NCM_EMBEDDED === 'true') {
+  request.defaults.adapter = async (config) => {
+    const { ncmAdapter } = await import('@/services/ncm/adapter');
+    return ncmAdapter(config);
+  };
+}
+
 // 最大重试次数
 const MAX_RETRIES = 1;
 // 重试延迟（毫秒）

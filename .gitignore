@@ -10,7 +10,8 @@ dist_electron
 # lock
 yarn.lock
 pnpm-lock.yaml
-package-lock.json
+# package-lock.json 上游默认忽略；本 fork 选择提交它，
+# 好让别人 clone 后能装到与 Android 构建完全一致的依赖版本。
 dist.zip
 
 .vscode
@@ -28,6 +29,17 @@ out
 
 resources/android/**/*
 android/app/release
+
+# 第三方落雪音源脚本：本地保留用于构建/自用，但不随仓库分发。
+# 它是别人的作品（且带防篡改校验），使用者请自行准备自己的音源脚本。
+resources/洛雪音乐 V3.0.js
+
+# Capacitor 从 webDir（out/renderer）拷贝进 Android 工程的产物，属于构建输出
+android/app/src/main/assets/public
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/app/src/main/assets/native-bridge.js
+android/local.properties
 
 .cursor
 .windsurf

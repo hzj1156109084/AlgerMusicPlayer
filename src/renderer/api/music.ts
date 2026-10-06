@@ -22,6 +22,11 @@ export const getMusicQualityDetail = (id: number) => {
 
 // 根据音乐Id获取音乐播放URl
 export const getMusicUrl = async (id: number, isDownloaded: boolean = false) => {
+  // 拼接 cookie 时必须补分隔符：用户粘贴的 token 不一定以 ';' 结尾，
+  // 直接 `${token} os=pc;` 会让 os=pc 粘到最后一个字段的值上。
+  // 若 token 只含 MUSIC_U 一个字段，被污染的就正好是 MUSIC_U 本身。
+  const token = localStorage.getItem('token') || '';
+  const tokenWithSep = token && !token.trimEnd().endsWith(';') ? `${token.trimEnd()};` : token;
   const userStore = useUserStore();
   const settingStore = useSettingsStore();
   // 判断是否登录
@@ -33,7 +38,7 @@ export const getMusicUrl = async (id: number, isDownloaded: boolean = false) => 
           id,
           level: settingStore.setData.musicQuality || 'higher',
           encodeType: settingStore.setData.musicQuality == 'lossless' ? 'aac' : 'flac',
-          cookie: `${localStorage.getItem('token')} os=pc;`
+          cookie: `${tokenWithSep} os=pc;`
         }
       });
 

@@ -79,6 +79,7 @@ export default {
     musicSources: '음원 설정',
     musicSourcesDesc: '음악 해석에 사용할 음원 플랫폼 선택',
     musicSourcesWarning: '최소 하나의 음원 플랫폼을 선택해야 합니다',
+    desktopOnlySource: '이 음원은 데스크톱 앱 전용이라 모바일에서 사용할 수 없습니다',
     musicUnblockEnable: '음악 해석 활성화',
     musicUnblockEnableDesc: '활성화하면 재생할 수 없는 음악을 해석하려고 시도합니다',
     configureMusicSources: '음원 구성',

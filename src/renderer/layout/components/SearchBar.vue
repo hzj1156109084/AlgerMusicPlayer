@@ -444,7 +444,10 @@ watchEffect(() => {
     : USER_SET_OPTIONS.filter((i) => i.key !== 'logout');
 });
 
-const restartApp = () => window.electron.ipcRenderer.send('restart');
+const restartApp = () => {
+  if (!isElectron) return;
+  window.electron.ipcRenderer.send('restart');
+};
 const toLogin = () => router.push('/user');
 const toGithub = () => window.open('http://donate.alger.fun/download', '_blank');
 const toGithubRelease = () => {

@@ -12,7 +12,8 @@
         />
       </setting-item>
 
-      <setting-item v-if="isElectron" :title="t('settings.playback.musicSources')">
+      <!-- 音源设置：移动端同样开放（自定义API 走普通 axios，不依赖 Electron） -->
+      <setting-item :title="t('settings.playback.musicSources')">
         <template #description>
           <div class="flex items-center gap-2">
             <n-switch v-model:value="setData.enableMusicUnblock">
@@ -87,7 +88,6 @@
     </div>
 
     <music-source-settings
-      v-if="isElectron"
       v-model:show="showMusicSourcesModal"
       v-model:sources="musicSources"
     />

@@ -440,6 +440,16 @@ class MusicSourceStrategyFactory {
   ];
 
   /**
+   * 只依赖 Electron IPC 的策略。
+   * 非桌面端（Android / Web）没有 `window.api`，走到 `window.api.unblockMusic`
+   * 会直接 TypeError，所以排除掉，省得每次都白跑一轮并刷一堆报错日志。
+   *
+   * 注意 **lxMusic 不在这里** —— 它走 `LxMusicSourceRunner`，那个类自带 fetch 回退，
+   * 端上可用。custom / gdmusic 同理（普通 axios）。
+   */
+  private static readonly electronOnlyStrategies = new Set(['unblockMusic']);
+
+  /**
    * 获取可用的解析策略
    * @param sources 音源列表
    * @param settingsStore 设置存储
@@ -448,6 +458,7 @@ class MusicSourceStrategyFactory {
   static getAvailableStrategies(sources: string[], settingsStore?: any): MusicSourceStrategy[] {
     return this.strategies
       .filter((strategy) => strategy.canHandle(sources, settingsStore))
+      .filter((strategy) => isElectron || !this.electronOnlyStrategies.has(strategy.name))
       .sort((a, b) => a.priority - b.priority);
   }
 }
@@ -500,12 +511,6 @@ export class MusicParser {
     const startTime = performance.now();
 
     try {
-      // 非Electron环境直接使用API请求
-      if (!isElectron) {
-        console.log('非Electron环境，使用API请求');
-        return await requestMusic.get<any>('/music', { params: { id } });
-      }
-
       // 获取设置存储
       let settingsStore: any;
       try {

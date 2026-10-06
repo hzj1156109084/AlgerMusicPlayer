@@ -4,7 +4,12 @@
       <n-dialog-provider>
         <n-message-provider>
           <router-view></router-view>
-          <traffic-warning-drawer v-if="!isElectron"></traffic-warning-drawer>
+          <!--
+            TrafficWarningDrawer（启动 20 秒后全屏弹出的「支持项目 / 微信支付 / 支付宝」抽屉）
+            已移除：它只在 !isElectron 时挂载，也就是说**只对移动端/网页版弹**，
+            点「稍后提醒」还会在 24 小时后再次出现。个人自用不需要这个。
+            捐赠入口仍保留在 设置 → 捐赠支持。
+          -->
           <disclaimer-modal></disclaimer-modal>
         </n-message-provider>
       </n-dialog-provider>
@@ -20,7 +25,6 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import DisclaimerModal from '@/components/common/DisclaimerModal.vue';
-import TrafficWarningDrawer from '@/components/TrafficWarningDrawer.vue';
 import { usePlayerStore } from '@/store/modules/player';
 import { usePlayerCoreStore } from '@/store/modules/playerCore';
 import { useSettingsStore } from '@/store/modules/settings';

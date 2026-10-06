@@ -236,19 +236,20 @@ const shouldShowDisclaimer = () => {
   return !localStorage.getItem(DISCLAIMER_AGREED_KEY);
 };
 
-const shouldShowDonateAfterUpdate = () => {
-  if (!localStorage.getItem(DISCLAIMER_AGREED_KEY)) return false;
-  const shownVersion = localStorage.getItem(DONATION_SHOWN_VERSION_KEY);
-  return shownVersion !== config.version;
-};
-
 const handleAgree = () => {
   if (isTransitioning.value) return;
   isTransitioning.value = true;
 
+  // 同意即落盘。
+  // 原来这里只把弹窗关掉、由「进入应用」才写 localStorage，于是：
+  // 同意 → 捐赠弹窗 → 用户没点「进入应用」就退出 → 下次启动又从免责声明重来，
+  // 无限循环。这正是「老是弹出来」的来源之一。
+  localStorage.setItem(DISCLAIMER_AGREED_KEY, Date.now().toString());
+  localStorage.setItem(DONATION_SHOWN_VERSION_KEY, config.version);
   showDisclaimer.value = false;
+
+  // 不再串联捐赠弹窗（个人自用）。捐赠入口保留在 设置 → 捐赠支持。
   setTimeout(() => {
-    showDonate.value = true;
     isTransitioning.value = false;
   }, 300);
 };
@@ -292,13 +293,10 @@ const handleEnterApp = () => {
 onMounted(() => {
   if (isLyricWindow.value) return;
 
+  // 只弹免责声明（且只在从未同意过时弹一次）。
+  // 捐赠弹窗不再自动出现 —— 见 handleAgree 的注释。
   if (shouldShowDisclaimer()) {
     showDisclaimer.value = true;
-    return;
-  }
-
-  if (shouldShowDonateAfterUpdate()) {
-    showDonate.value = true;
   }
 });
 </script>
