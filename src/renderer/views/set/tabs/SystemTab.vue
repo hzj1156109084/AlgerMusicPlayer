@@ -1,5 +1,5 @@
 <template>
-  <setting-section v-if="isElectron" :title="t('settings.sections.system')">
+  <setting-section v-if="isElectron || isNative" :title="t('settings.sections.system')">
     <setting-item
       :title="t('settings.system.diskCache')"
       :description="t('settings.system.diskCacheDesc')"
@@ -11,6 +11,7 @@
     </setting-item>
 
     <setting-item
+      v-if="isElectron"
       :title="t('settings.system.cacheDirectory')"
       :description="
         setData.diskCacheDir || diskCacheStats.directory || t('settings.system.cacheDirectoryDesc')
@@ -28,6 +29,16 @@
       </template>
     </setting-item>
 
+    <!--
+      端上缓存落在应用私有目录（Directory.Data），系统不会自动清理、卸载才删除
+      —— 这正是「断网能重放」的前提。位置不可选也不可打开，只如实显示。
+    -->
+    <setting-item
+      v-else
+      :title="t('settings.system.cacheDirectory')"
+      :description="cacheDirectoryLabel"
+    />
+
     <setting-item
       :title="t('settings.system.cacheMaxSize')"
       :description="t('settings.system.cacheMaxSizeDesc')"
@@ -40,7 +51,7 @@
           :max="102400"
           :step="256"
           suffix="MB"
-          width="w-[160px] max-md:w-32"
+          width="w-[160px] max-md:w-[200px]"
         />
       </template>
     </setting-item>
@@ -70,7 +81,9 @@
           <div class="w-40 max-md:w-32">
             <n-progress type="line" :percentage="diskCacheUsagePercent" />
           </div>
-          <span class="text-xs text-neutral-500">
+          <!-- 端上只缓存音乐，不缓存歌词（歌词另有 musicDB 持久化），
+               这里显示「歌词 0 首」会让人误以为坏了，所以只在桌面显示这一行明细 -->
+          <span v-if="isElectron" class="text-xs text-neutral-500">
             {{
               t('settings.system.cacheStatusDetail', {
                 musicCount: diskCacheStats.musicFiles,
@@ -89,41 +102,56 @@
     >
       <template #action>
         <div class="flex items-center gap-2 max-md:flex-wrap">
-          <s-btn @click="clearDiskCacheByScope('music')">
+          <s-btn
+            :variant="isElectron ? 'default' : 'danger'"
+            @click="clearDiskCacheByScope('music')"
+          >
             {{ t('settings.system.clearMusicCache') }}
           </s-btn>
-          <s-btn @click="clearDiskCacheByScope('lyrics')">
+          <s-btn v-if="isElectron" @click="clearDiskCacheByScope('lyrics')">
             {{ t('settings.system.clearLyricCache') }}
           </s-btn>
-          <s-btn variant="danger" @click="clearDiskCacheByScope('all')">
+          <s-btn v-if="isElectron" variant="danger" @click="clearDiskCacheByScope('all')">
             {{ t('settings.system.clearAllCache') }}
           </s-btn>
         </div>
       </template>
     </setting-item>
 
-    <setting-item :title="t('settings.system.cache')" :description="t('settings.system.cacheDesc')">
+    <!-- 下面这些是 Electron 专有：通用缓存弹窗的 clearCache() 会调无守卫的 window.api，重启也依赖 IPC -->
+    <setting-item
+      v-if="isElectron"
+      :title="t('settings.system.cache')"
+      :description="t('settings.system.cacheDesc')"
+    >
       <s-btn @click="showClearCacheModal = true">{{ t('settings.system.cacheDesc') }}</s-btn>
     </setting-item>
 
     <setting-item
+      v-if="isElectron"
       :title="t('settings.system.restart')"
       :description="t('settings.system.restartDesc')"
     >
       <s-btn @click="restartApp">{{ t('settings.system.restart') }}</s-btn>
     </setting-item>
 
-    <clear-cache-settings v-model:show="showClearCacheModal" @confirm="clearCache" />
+    <clear-cache-settings
+      v-if="isElectron"
+      v-model:show="showClearCacheModal"
+      @confirm="clearCache"
+    />
   </setting-section>
 </template>
 
 <script setup lang="ts">
+import { Capacitor } from '@capacitor/core';
 import { useDebounceFn } from '@vueuse/core';
 import { computed, inject, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import localData from '@/../main/set.json';
 import ClearCacheSettings from '@/components/settings/ClearCacheSettings.vue';
+import { audioDiskCache } from '@/services/audioDiskCache';
 import { useUserStore } from '@/store/modules/user';
 import { isElectron } from '@/utils';
 import { openDirectory, selectDirectory } from '@/utils/fileOperation';
@@ -170,6 +198,8 @@ const message = inject(SETTINGS_MESSAGE_KEY)!;
 const dialog = inject(SETTINGS_DIALOG_KEY)!;
 
 const showClearCacheModal = ref(false);
+/** 端上（Android/iOS）走 renderer 侧的音频磁盘缓存，桌面走主进程 IPC */
+const isNative = Capacitor.isNativePlatform();
 const diskCacheStats = ref<DiskCacheStats>({
   enabled: true,
   directory: '',
@@ -207,6 +237,13 @@ const formatBytes = (bytes: number) => {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
+/** 端上展示用：getUri 返回的是 file:///data/user/0/... ，去掉 scheme 更好读 */
+const cacheDirectoryLabel = computed(() => {
+  const raw = diskCacheStats.value.directory;
+  if (!raw) return t('settings.system.cacheDirectoryDesc');
+  return raw.replace(/^file:\/\//, '');
+});
+
 const readDiskCacheConfigFromUI = (): DiskCacheConfig => {
   const cleanupPolicy: DiskCacheCleanupPolicy =
     setData.value.diskCacheCleanupPolicy === 'fifo' ? 'fifo' : 'lru';
@@ -221,11 +258,15 @@ const readDiskCacheConfigFromUI = (): DiskCacheConfig => {
 };
 
 const refreshDiskCacheStats = async (silent: boolean = true) => {
-  if (!window.electron) return;
   try {
-    const stats = (await window.electron.ipcRenderer.invoke(
-      'get-disk-cache-stats'
-    )) as DiskCacheStats;
+    // 桌面走主进程 IPC；端上统计直接来自 renderer 侧的内存索引
+    // （每条都带 size，不需要逐文件 stat）
+    const stats = isElectron
+      ? ((await window.electron.ipcRenderer.invoke('get-disk-cache-stats')) as DiskCacheStats)
+      : isNative
+        ? await audioDiskCache.getStats()
+        : null;
+
     if (stats) {
       diskCacheStats.value = stats;
     }
@@ -290,6 +331,11 @@ const applyDiskCacheConfigDebounced = useDebounceFn(() => {
   void applyDiskCacheConfig();
 }, 500);
 
+/** 端上改了上限后让新预算立刻生效（必要时触发淘汰） */
+const onConfigChangedDebounced = useDebounceFn(() => {
+  audioDiskCache.onConfigChanged();
+}, 500);
+
 watch(
   () => [
     setData.value.enableDiskCache,
@@ -298,8 +344,15 @@ watch(
     setData.value.diskCacheCleanupPolicy
   ],
   () => {
-    if (!window.electron || applyingDiskCacheConfig.value || switchingCacheDirectory.value) return;
-    applyDiskCacheConfigDebounced();
+    if (applyingDiskCacheConfig.value || switchingCacheDirectory.value) return;
+
+    if (isElectron) {
+      applyDiskCacheConfigDebounced();
+      return;
+    }
+
+    // 端上：持久化由 index.vue 里已有的防抖深监听负责，这里只通知缓存层
+    if (isNative) onConfigChangedDebounced();
   }
 );
 
@@ -414,8 +467,61 @@ const openCacheDirectory = () => {
   openDirectory(targetPath, message);
 };
 
+/**
+ * 清空端上歌曲缓存前的二次确认。
+ * 一次可能释放几百 MB，而且删掉之后断网就听不了那些歌了 —— 值得先问一句。
+ */
+const askClearSongCache = (removedCount: number, freedBytes: number): Promise<boolean> => {
+  return new Promise((resolve) => {
+    let resolved = false;
+    const finish = (value: boolean) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(value);
+    };
+
+    dialog.warning({
+      title: t('settings.system.clearSongCacheTitle'),
+      content: t('settings.system.clearSongCacheContent', {
+        count: removedCount,
+        size: formatBytes(freedBytes)
+      }),
+      positiveText: t('settings.system.clearSongCacheConfirm'),
+      negativeText: t('common.cancel'),
+      onPositiveClick: () => finish(true),
+      onNegativeClick: () => finish(false),
+      onClose: () => finish(false)
+    });
+  });
+};
+
 const clearDiskCacheByScope = async (scope: DiskCacheScope) => {
-  if (!window.electron) return;
+  // 端上：走 renderer 侧的音频磁盘缓存
+  if (!isElectron) {
+    if (!isNative) return;
+
+    try {
+      const preview = await audioDiskCache.getStats();
+      if (!preview.totalFiles) {
+        message.info(t('settings.system.clearSongCacheEmpty'));
+        return;
+      }
+      if (!(await askClearSongCache(preview.musicFiles, preview.totalSizeBytes))) return;
+
+      const { freedBytes, removedCount } = await audioDiskCache.clear('music');
+      await refreshDiskCacheStats();
+      message.success(
+        t('settings.system.clearSongCacheSuccess', {
+          count: removedCount,
+          size: formatBytes(freedBytes)
+        })
+      );
+    } catch (error) {
+      console.error('清空歌曲缓存失败:', error);
+      message.error(t('settings.system.messages.diskCacheClearFailed'));
+    }
+    return;
+  }
 
   try {
     const success = await window.electron.ipcRenderer.invoke('clear-disk-cache', scope);

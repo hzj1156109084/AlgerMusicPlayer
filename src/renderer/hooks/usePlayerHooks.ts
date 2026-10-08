@@ -1,8 +1,10 @@
+import { Capacitor } from '@capacitor/core';
 import { cloneDeep } from 'lodash';
 import { createDiscreteApi } from 'naive-ui';
 
 import i18n from '@/../i18n/renderer';
 import { getMusicLrc, getMusicUrl, getParsingMusicUrl } from '@/api/music';
+import { audioDiskCache } from '@/services/audioDiskCache';
 import { playbackRequestManager } from '@/services/playbackRequestManager';
 import { SongSourceConfigManager } from '@/services/SongSourceConfigManager';
 import type { ILyric, ILyricText, IWordData, SongResult } from '@/types/music';
@@ -34,24 +36,46 @@ const resolveCachedPlaybackUrl = async (
   url: string | null | undefined,
   songData: SongResult
 ): Promise<string | null | undefined> => {
-  if (!url || !isElectron || !/^https?:\/\//i.test(url)) {
+  if (!url || !/^https?:\/\//i.test(url)) {
     return url;
   }
 
-  try {
-    const result = (await window.electron.ipcRenderer.invoke('resolve-cached-music-url', {
-      songId: Number(songData.id),
-      source: songData.source,
-      url,
-      title: songData.name,
-      artist: getSongArtistText(songData)
-    })) as DiskCacheResolveResult;
+  const payload = {
+    songId: Number(songData.id),
+    source: songData.source,
+    url,
+    title: songData.name,
+    artist: getSongArtistText(songData)
+  };
 
-    if (result?.url) {
-      return result.url;
+  // 桌面版：磁盘缓存整个在主进程里（src/main/modules/cache.ts）
+  if (isElectron) {
+    try {
+      const result = (await window.electron.ipcRenderer.invoke(
+        'resolve-cached-music-url',
+        payload
+      )) as DiskCacheResolveResult;
+
+      if (result?.url) {
+        return result.url;
+      }
+    } catch (error) {
+      console.warn('解析缓存播放地址失败，回退到在线地址:', error);
     }
-  } catch (error) {
-    console.warn('解析缓存播放地址失败，回退到在线地址:', error);
+    return url;
+  }
+
+  // 端上：走 renderer 侧的音频磁盘缓存。命中返回 local:///...（由 utils/playableUrl.ts
+  // 在交给 Howler 前翻译成可加载地址），未命中返回在线地址并在后台落盘。
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const result = await audioDiskCache.resolveMusicUrl(payload);
+      if (result?.url) {
+        return result.url;
+      }
+    } catch (error) {
+      console.warn('解析离线缓存播放地址失败，回退到在线地址:', error);
+    }
   }
 
   return url;
@@ -77,6 +101,24 @@ export const getSongUrl = async (
     if (requestId && !playbackRequestManager.isRequestValid(requestId)) {
       console.log(`[getSongUrl] 请求已失效: ${requestId}`);
       throw new Error('Request cancelled');
+    }
+
+    // 端上的离线兜底：按 songId+source 直接查缓存，不依赖手里有没有 URL。
+    // 这一步不能省 —— 重启恢复播放时 playerCore 会把非 local:// 的 playMusicUrl 置空
+    // （store/modules/playerCore.ts 的 initializePlayState），半小时过期逻辑也会清掉它
+    // （useSongDetail）。那两种情况下 songData.playMusicUrl 是空的，会一路走到
+    // getMusicUrl 的网络链上，压根到不了下面任何一次 resolveCachedPlaybackUrl。
+    if (!isElectron && !isDownloaded && Capacitor.isNativePlatform()) {
+      try {
+        const offlineUrl = await audioDiskCache.getOfflinePlaybackUrl(numericId, songData.source);
+        if (offlineUrl) return offlineUrl;
+        // 没命中却还挂着缓存标记 → 文件已经不在了（被清空或被淘汰），丢掉它继续往下走
+        if (!(await audioDiskCache.isCacheUrlAlive(songData.playMusicUrl))) {
+          songData.playMusicUrl = undefined;
+        }
+      } catch (error) {
+        console.warn('[getSongUrl] 读取离线缓存失败:', error);
+      }
     }
 
     if (songData.playMusicUrl) {
@@ -382,6 +424,15 @@ export const useSongDetail = () => {
     if (requestId && !playbackRequestManager.isRequestValid(requestId)) {
       console.log(`[getSongDetail] 请求已失效: ${requestId}`);
       throw new Error('Request cancelled');
+    }
+
+    // 缓存命中会返回 local://，而下面的过期清理刻意跳过了 local://（那是为「本地音乐
+    // 不过期」加的豁免）—— 于是文件被删掉（设置里的「清空歌曲缓存」、容量淘汰）之后，
+    // 这个失效的 local:// 不会被自动纠正，会一路喂给 Howl 并报 MEDIA_ERR_SRC_NOT_SUPPORTED，
+    // 表现成「清空缓存之后这首歌再也放不了」。所以复用前先确认文件还在。
+    if (!isElectron && !(await audioDiskCache.isCacheUrlAlive(playMusic.playMusicUrl))) {
+      console.warn(`离线缓存文件已不存在，重新解析: ${playMusic.name}`);
+      playMusic.playMusicUrl = undefined;
     }
 
     if (playMusic.expiredAt && playMusic.expiredAt < Date.now()) {

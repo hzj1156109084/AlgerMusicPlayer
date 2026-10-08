@@ -1,6 +1,7 @@
 import { Howl } from 'howler';
 
 import type { SongResult } from '@/types/music';
+import { toPlayableUrl } from '@/utils/playableUrl';
 
 class PreloadService {
   private loadingPromises: Map<string | number, Promise<Howl>> = new Map();
@@ -92,10 +93,12 @@ class PreloadService {
     return sound;
   }
 
-  private _createSound(url: string): Promise<Howl> {
+  private async _createSound(url: string): Promise<Howl> {
+    // 磁盘缓存返回的是内部标记 local:///...，WebView 读不了，必须在这里翻译一次
+    const src = await toPlayableUrl(url);
     return new Promise((resolve, reject) => {
       const sound = new Howl({
-        src: [url],
+        src: [src],
         html5: true,
         preload: true,
         autoplay: false,

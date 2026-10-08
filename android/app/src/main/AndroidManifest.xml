@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!--
+      dataExtractionRules / fullBackupContent 把 files/audio-cache 排除出备份：
+      音频缓存体积远超 Android Auto Backup 的 25MB 配额，塞进去会撑爆甚至让备份失败。
+      见 res/xml/data_extraction_rules.xml 与 res/xml/backup_rules.xml。
+    -->
     <application
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"

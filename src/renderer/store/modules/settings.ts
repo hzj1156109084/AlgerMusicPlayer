@@ -14,7 +14,7 @@ import {
   watchSystemTheme
 } from '@/utils/theme';
 
-import { type AppUpdateState,createDefaultAppUpdateState } from '../../../shared/appUpdate';
+import { type AppUpdateState, createDefaultAppUpdateState } from '../../../shared/appUpdate';
 
 export const useSettingsStore = defineStore('settings', () => {
   const theme = ref<ThemeType>(getCurrentTheme());
@@ -66,8 +66,19 @@ export const useSettingsStore = defineStore('settings', () => {
       return undefined;
     };
 
+    // 平台相关的默认值：安卓端是手机存储，4096MB 的默认上限明显不合适。
+    // 放在 setDataDefault 之后、savedSettings 之前 —— 用户已经存过的值仍然最高优先，
+    // 所以已有安装不会被悄悄改掉，只有全新安装才拿到这里的值。
+    const platformDefaults: Record<string, unknown> = isElectron ? {} : { diskCacheMaxSizeMB: 500 };
+
     // 合并默认设置和保存的设置
-    const mergedSettings = mergeWith({}, setDataDefault, savedSettings, customizer);
+    const mergedSettings = mergeWith(
+      {},
+      setDataDefault,
+      platformDefaults,
+      savedSettings,
+      customizer
+    );
 
     // 更新设置并返回
     setSetData(mergedSettings);

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  API 31+ 的备份/换机传输规则：端上音频缓存（files/audio-cache）不参与。
+
+  为什么必须排除：Android Auto Backup 有 25MB 配额，而缓存上限默认就有几百 MB。
+  不排除的话既会把备份撑爆，也可能导致整个备份失败 —— 那样连用户真正的数据
+  （登录态、设置、歌单）一起丢。而缓存是可再生的，本来就不需要备份。
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="audio-cache" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="audio-cache" />
+    </device-transfer>
+</data-extraction-rules>

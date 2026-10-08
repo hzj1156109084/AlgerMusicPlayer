@@ -12,6 +12,7 @@ dependencies {
     implementation project(':capacitor-community-safe-area')
     implementation project(':capacitor-app')
     implementation project(':capacitor-device')
+    implementation project(':capacitor-filesystem')
     implementation project(':capacitor-keyboard')
     implementation project(':capacitor-screen-orientation')
     implementation project(':capacitor-status-bar')

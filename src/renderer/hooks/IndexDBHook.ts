@@ -147,6 +147,24 @@ const useIndexedDB = async <T extends string, S extends Record<T, Record<string,
     });
   };
 
+  // 清空整张表
+  const clearData = <K extends T>(storeName: K) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!db.value) return reject('数据库未初始化');
+      const tx = db.value.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const request = store.clear();
+
+      request.onsuccess = () => {
+        resolve();
+      };
+
+      request.onerror = (event) => {
+        reject((event.target as IDBRequest).error);
+      };
+    });
+  };
+
   // 分页查询数据
   const getDataWithPagination = <K extends T>(storeName: K, page: number, pageSize: number) => {
     return new Promise<S[K][]>((resolve, reject) => {
@@ -186,6 +204,7 @@ const useIndexedDB = async <T extends string, S extends Record<T, Record<string,
     getData,
     deleteData,
     getAllData,
+    clearData,
     getDataWithPagination
   };
 };

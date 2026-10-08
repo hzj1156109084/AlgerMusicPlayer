@@ -219,6 +219,12 @@ export default {
     clearMusicCache: '음악 캐시 정리',
     clearLyricCache: '가사 캐시 정리',
     clearAllCache: '전체 캐시 정리',
+    clearSongCacheTitle: '노래 캐시를 비울까요?',
+    clearSongCacheContent:
+      '{count}곡의 캐시(총 {size})를 삭제합니다. 삭제 후에는 오프라인에서 이 곡들을 재생할 수 없습니다.',
+    clearSongCacheConfirm: '삭제',
+    clearSongCacheEmpty: '노래 캐시가 이미 비어 있습니다',
+    clearSongCacheSuccess: '캐시 {count}개를 정리하고 {size}를 확보했습니다',
     switchDirectoryMigrateTitle: '기존 캐시가 감지되었습니다',
     switchDirectoryMigrateContent: '기존 캐시를 새 디렉터리로 마이그레이션할까요?',
     switchDirectoryMigrateConfirm: '마이그레이션',

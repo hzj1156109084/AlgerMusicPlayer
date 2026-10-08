@@ -219,6 +219,12 @@ export default {
     clearMusicCache: 'Clear Music Cache',
     clearLyricCache: 'Clear Lyric Cache',
     clearAllCache: 'Clear All Cache',
+    clearSongCacheTitle: 'Clear song cache?',
+    clearSongCacheContent:
+      'This will delete the cached audio for {count} song(s), {size} in total. Those songs will no longer play without a network connection.',
+    clearSongCacheConfirm: 'Clear',
+    clearSongCacheEmpty: 'The song cache is already empty',
+    clearSongCacheSuccess: 'Cleared {count} cached file(s) and freed {size}',
     switchDirectoryMigrateTitle: 'Existing Cache Detected',
     switchDirectoryMigrateContent: 'Do you want to migrate old cache files to the new directory?',
     switchDirectoryMigrateConfirm: 'Migrate',

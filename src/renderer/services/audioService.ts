@@ -3,6 +3,7 @@ import { Howl, Howler } from 'howler';
 import type { AudioOutputDevice } from '@/types/audio';
 import type { SongResult } from '@/types/music';
 import { isElectron } from '@/utils'; // 导入isElectron常量
+import { toPlayableUrl } from '@/utils/playableUrl';
 
 class AudioService {
   private currentSound: Howl | null = null;
@@ -636,8 +637,10 @@ class AudioService {
             // 这里我们假设 existingSound 是干净的或者我们只绑定我们需要关心的
           } else {
             console.log('audioService: 创建新的 Howl 对象');
+            // 磁盘缓存返回的是内部标记 local:///...，WebView 读不了，必须在这里翻译一次
+            const playableSrc = await toPlayableUrl(url);
             newSound = new Howl({
-              src: [url],
+              src: [playableSrc],
               html5: true,
               autoplay: false,
               volume: 1, // 禁用 Howler.js 音量控制

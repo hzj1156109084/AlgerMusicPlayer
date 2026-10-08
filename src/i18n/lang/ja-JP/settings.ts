@@ -218,6 +218,12 @@ export default {
     clearMusicCache: '音楽キャッシュを削除',
     clearLyricCache: '歌詞キャッシュを削除',
     clearAllCache: 'すべて削除',
+    clearSongCacheTitle: '楽曲キャッシュを削除しますか？',
+    clearSongCacheContent:
+      '{count} 曲分のキャッシュ（合計 {size}）を削除します。削除後はオフラインでこれらの曲を再生できなくなります。',
+    clearSongCacheConfirm: '削除する',
+    clearSongCacheEmpty: '楽曲キャッシュはすでに空です',
+    clearSongCacheSuccess: '{count} 件のキャッシュを削除し、{size} を解放しました',
     switchDirectoryMigrateTitle: '既存キャッシュを検出',
     switchDirectoryMigrateContent: '旧ディレクトリのキャッシュを新ディレクトリへ移行しますか？',
     switchDirectoryMigrateConfirm: '移行する',

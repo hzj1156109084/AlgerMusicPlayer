@@ -43,6 +43,7 @@
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.2",
     "@capacitor/device": "^8.0.3",
+    "@capacitor/filesystem": "^8.1.4",
     "@capacitor/keyboard": "^8.0.6",
     "@capacitor/screen-orientation": "^8.0.2",
     "@capacitor/status-bar": "^8.0.4",
@@ -70,9 +71,9 @@
     "vue-i18n": "^11.2.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
     "@electron-toolkit/eslint-config": "^2.1.0",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
-    "@capacitor/cli": "^8.5.2",
     "@electron-toolkit/tsconfig": "^1.0.1",
     "@eslint/js": "^9.39.2",
     "@rushstack/eslint-patch": "^1.15.0",

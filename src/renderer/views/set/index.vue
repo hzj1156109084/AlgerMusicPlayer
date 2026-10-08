@@ -66,6 +66,7 @@
 </template>
 
 <script setup lang="ts">
+import { Capacitor } from '@capacitor/core';
 import { useDebounceFn } from '@vueuse/core';
 import { useDialog, useMessage } from 'naive-ui';
 import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue';
@@ -131,24 +132,36 @@ provide(SETTINGS_MESSAGE_KEY, message);
 provide(SETTINGS_DIALOG_KEY, dialog);
 
 // ==================== 导航相关 ====================
+type SettingPlatform = 'electron' | 'native';
+
 type SettingSectionConfig = {
   id: string;
-  electron?: boolean;
+  /** 不写 = 所有平台都显示；写了 = 只在这些平台上出现 */
+  platforms?: SettingPlatform[];
 };
+
+const isNativePlatform = Capacitor.isNativePlatform();
 
 const settingSections: SettingSectionConfig[] = [
   { id: 'basic' },
   { id: 'playback' },
-  { id: 'application', electron: true },
-  { id: 'network', electron: true },
-  { id: 'system', electron: true },
+  { id: 'application', platforms: ['electron'] },
+  { id: 'network', platforms: ['electron'] },
+  // 端上也要能查看/清空音频缓存，所以「系统」页对两端都开放。
+  // 页内 Electron 专属的行（缓存目录选择、重启等）由 SystemTab 自己单独守卫。
+  { id: 'system', platforms: ['electron', 'native'] },
   { id: 'about' },
   { id: 'donation' }
 ];
 
 const navSections = computed(() => {
   return settingSections
-    .filter((section) => !section.electron || isElectron)
+    .filter((section) => {
+      if (!section.platforms) return true;
+      return section.platforms.some((platform) =>
+        platform === 'electron' ? isElectron : isNativePlatform
+      );
+    })
     .map((section) => ({
       id: section.id,
       title: t(`settings.sections.${section.id}`)
@@ -172,7 +185,7 @@ onMounted(() => {
     setData.value = { ...setData.value, enableDiskCache: true };
   }
   if (!setData.value.diskCacheMaxSizeMB) {
-    setData.value = { ...setData.value, diskCacheMaxSizeMB: 4096 };
+    setData.value = { ...setData.value, diskCacheMaxSizeMB: isElectron ? 4096 : 500 };
   }
   if (!['lru', 'fifo'].includes(setData.value.diskCacheCleanupPolicy)) {
     setData.value = { ...setData.value, diskCacheCleanupPolicy: 'lru' };

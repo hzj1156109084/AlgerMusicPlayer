@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  API 30 及以下的旧备份机制（android:fullBackupContent）。
+  排除理由同 data_extraction_rules.xml：音频缓存体积远超备份配额，且可再生。
+-->
+<full-backup-content>
+    <exclude domain="file" path="audio-cache" />
+</full-backup-content>
