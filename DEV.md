@@ -196,3 +196,5 @@ npm run build
 ```
 
 打包后的文件在 /out/renderer 下
+
+打包 Android 端（APK）见 [README 的「自己编译 Android 版」](./README.md#自己编译-android-版apk)。

@@ -77,6 +77,92 @@ npm install
 npm run dev
 ```
 
+## 自己编译 Android 版（APK）
+
+本分支把 AlgerMusicPlayer 移植成了 Android 应用：Capacitor 外壳 + **端内** 网易云 API（所有网易云请求在设备本地完成，`MUSIC_U` 不出设备）。下面是 clone 之后从源码打出可安装 APK 的完整步骤。
+
+### 1. 环境准备
+
+| 需要        | 版本                                                                          |
+| ----------- | ----------------------------------------------------------------------------- |
+| Node.js     | 18+（CI 用 24）                                                               |
+| **JDK 21**  | Capacitor 7+ 的要求，**17 不够**                                              |
+| Android SDK | Platform **36** + Build-Tools 36 + Platform-Tools（minSdk 24 / targetSdk 36） |
+
+`npm install` 会自动走国内镜像 —— 仓库自带 `.npmrc`（npmmirror registry + electron 二进制镜像），无需自己配。
+
+JDK 21 怎么指定：`android/gradle.properties` 里**故意没写** `org.gradle.java.home`（绝对路径不能进仓库）。二选一：
+
+- 设 `JAVA_HOME` 环境变量指向 JDK 21；
+- 或写进**用户级**配置 `~/.gradle/gradle.properties`（Windows 是 `%USERPROFILE%\.gradle\gradle.properties`）：
+  ```properties
+  org.gradle.java.home=/path/to/jdk-21
+  ```
+
+别写进项目的 `android/gradle.properties` —— 那会跟着仓库走，别人拿到的就是你的错误路径。
+
+### 2. 配好 Android SDK 路径（必做）
+
+`android/local.properties` 是**机器专属**的，已从版本库排除，必须自己建一份：
+
+```properties
+sdk.dir=/path/to/Android/Sdk
+```
+
+Windows 下盘符和反斜杠要转义，例如 `sdk.dir=E\:\\Android\\Sdk`。用 Android Studio 打开一次 `android/` 目录也会自动生成这个文件；或者设好 `ANDROID_HOME` 环境变量也行。
+
+### 3. 构建
+
+```bash
+npm install
+npm run android:sync                              # = electron-vite build --mode android + cap sync android
+cd android && ./gradlew assembleDebug             # Windows: gradlew.bat assembleDebug
+```
+
+产物在 `android/app/build/outputs/apk/debug/app-debug.apk`，装到手机：
+
+```bash
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+也可以用 `npm run android:open` 直接开 Android Studio，或 `npm run android:run` 装到已连接的设备。
+
+> **`android:sync` 不能跳过。** `android/app/src/main/assets/` 整个目录（含 `capacitor.plugins.json` 插件注册表和 WebView 资源）都在 gitignore 里，只有 `cap sync` 会生成它。跳过的话 APK 照样能编译出来，但原生插件没注册 —— 表现为离线缓存等功能静默失效，很难查。
+
+### 4. 改成「自己的」应用
+
+| 想改什么 | 改哪里                                                                                                                                      |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 包名     | `capacitor.config.ts` 的 `appId` + `android/app/build.gradle` 的 `namespace` 与 `applicationId`（**三处必须一致**）                         |
+| 版本号   | `android/app/build.gradle` 的 `versionCode` / `versionName`                                                                                 |
+| 应用名   | `capacitor.config.ts` 的 `appName`（`cap sync` 会把它写进 `values/strings.xml` 的 `app_name`；**只改 strings.xml 会在下次 sync 时被覆盖**） |
+| 图标     | `android/app/src/main/res/mipmap-*/ic_launcher*.png`                                                                                        |
+
+两点提醒：
+
+- **versionCode 当前是 3**，与官方 5.1.0 APK 相同。同 versionCode 覆盖安装会失败（签名也不同），要么先卸载官方版，要么把自己的 versionCode 调大。
+- `assembleDebug` 出的是 **debug 签名**包，自用足够；要发布正式包需自建 keystore 并在 `android/app/build.gradle` 里配 `signingConfigs`。
+
+### 5. 三个已知的坑
+
+**构建卡在 `:capacitor-filesystem:compileDebugKotlin` 十几分钟不动。** 真因是 Maven Central 不通 —— `@capacitor/filesystem` 是全项目唯一用 Kotlin 的插件，编译它要下 `kotlin-compiler-embeddable`（约 56MB，只发布在 Maven Central），Gradle 在那里反复超时重试，**不报错也不结束**，看起来像死锁。先跑一次 `./gradlew assembleDebug --offline`，静默挂起会立刻变成明确的「缺件」报错，一步定位。确认后加用户级 `~/.gradle/init.gradle` 走镜像：
+
+```groovy
+allprojects {
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+    }
+}
+```
+
+（Gradle 发行包本身的下载源已经是腾讯云镜像，见 `android/gradle/wrapper/gradle-wrapper.properties`。只要新增一个带新依赖的插件，这个坑就可能复现。）
+
+**LX 音源脚本不在仓库里**（版权 + 防篡改，有意排除）。没有它不影响构建、也不影响官方音源。要用就在应用内「设置 → 音源设置」里导入你自己合法获得的脚本 —— 不要去找那个文件名，它不会被提交上来。
+
+**别动 `capacitor.config.ts` 里的 `CapacitorCookies`（保持关闭）和 `CapacitorHttp`（保持开启）。** 前者关着才能保证网易云 Cookie 只发往 `music.163.com`；后者是必须的：`music.163.com` 不返回 CORS 头，且 `Set-Cookie` 是浏览器 fetch 的 forbidden header，扫码登录拿 `MUSIC_U` 完全依赖它。改动这两项会同时破坏登录和隐私边界。
+
 ## 开发文档
 
 点击这里[开发文档](./DEV.md)
@@ -84,8 +170,9 @@ npm run dev
 ## 赞赏☕️
 
 [赞赏列表](http://donate.alger.fun/)
-| 微信赞赏 | 支付宝赞赏 |
-| :--------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------: |
+
+|                                                                     微信赞赏                                                                     |                                                                  支付宝赞赏                                                                   |
+| :----------------------------------------------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------: |
 | <img src="https://github.com/algerkong/algerkong/blob/main/wechat.jpg?raw=true" alt="WeChat QRcode" width=200> <br><small>喝点咖啡继续干</small> | <img src="https://github.com/algerkong/algerkong/blob/main/alipay.jpg?raw=true" alt="Wechat QRcode" width=200> <br><small>来包辣条吧~</small> |
 
 ## 项目统计
