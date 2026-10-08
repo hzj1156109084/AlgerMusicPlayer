@@ -19,7 +19,12 @@ export default {
     getUrlFailed: '取得音樂下載位址失敗，請檢查是否登入',
     noLyric: '該歌曲暫無歌詞',
     lyricDownloaded: '歌詞下載成功',
-    lyricDownloadFailed: '歌詞下載失敗'
+    lyricDownloadFailed: '歌詞下載失敗',
+    downloadSaved: '已儲存到 {path}',
+    downloadPartialSuccess: '下載完成：成功 {success} 首，失敗 {failed} 首',
+    downloadNoDirectory: '還沒有可用的下載目錄，請到「設定 → 下載設定」裡選一個',
+    downloadOldAndroid: '系統版本過低，無法儲存到音樂庫，請先選擇自訂目錄',
+    downloadDirectorySet: '下載目錄已設為 {path}'
   },
   dialog: {
     dislike: {

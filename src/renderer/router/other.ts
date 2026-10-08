@@ -153,6 +153,21 @@ const otherRouter = [
       back: true
     },
     component: () => import('@/views/search/SearchResult.vue')
+  },
+  {
+    // 端上"已缓存"清单：能听的就是这些。走 otherRouter 而非 homeRouter —— 移动端底栏
+    // 已经有 6 项，而且 otherRouter 本来就不会进底栏（它只播种 homeRouter）。
+    // keepAlive 的 include 列表由 name 首字母大写生成，所以组件名必须是 'Cached'。
+    path: '/cached',
+    name: 'cached',
+    meta: {
+      title: 'cached.title',
+      keepAlive: true,
+      showInMenu: false,
+      back: true,
+      isMobile: true
+    },
+    component: () => import('@/views/cached/index.vue')
   }
 ];
 export default otherRouter;

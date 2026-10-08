@@ -18,6 +18,7 @@
 </template>
 
 <script setup lang="ts">
+import { Capacitor } from '@capacitor/core';
 import { cloneDeep } from 'lodash';
 import { darkTheme, lightTheme } from 'naive-ui';
 import { computed, nextTick, onMounted, watch } from 'vue';
@@ -124,22 +125,33 @@ if (isElectron) {
 // 使用应用内快捷键
 useAppShortcuts();
 
+/**
+ * 断网时该落到哪个页面。
+ *
+ * 桌面端的 `/local-music` 靠主进程 fs 扫描本地目录，断网时它是正确的去处。但 Android 端
+ * 没有主进程文件系统，那个页面上的每个按钮都在调 `window.electron` / `window.api` —— 两者
+ * 在端上都是 undefined，断网跳过去等于把人扔进一个点哪都报错的页面。
+ * 端上断网时能听的本来就只有缓存里那些歌，所以去「已缓存」。
+ */
+const offlineFallbackRoute = (): string =>
+  Capacitor.isNativePlatform() ? '/cached' : '/local-music';
+
 onMounted(async () => {
   playerStore.setIsPlay(false);
   if (isLyricWindow.value) {
     return;
   }
 
-  // 检查网络状态，离线时自动跳转到本地音乐页面
+  // 检查网络状态，离线时自动跳转到离线可用的页面
   if (!navigator.onLine) {
-    console.log('检测到无网络连接，跳转到本地音乐页面');
-    router.push('/local-music');
+    console.log(`检测到无网络连接，跳转到 ${offlineFallbackRoute()}`);
+    router.push(offlineFallbackRoute());
   }
 
-  // 监听网络状态变化，断网时跳转到本地音乐页面
+  // 监听网络状态变化，断网时跳转
   window.addEventListener('offline', () => {
-    console.log('网络连接断开，跳转到本地音乐页面');
-    router.push('/local-music');
+    console.log(`网络连接断开，跳转到 ${offlineFallbackRoute()}`);
+    router.push(offlineFallbackRoute());
   });
 
   // 初始化 MusicHook，注入 playerStore

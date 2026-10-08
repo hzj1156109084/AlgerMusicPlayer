@@ -8,9 +8,34 @@ export default {
     playback: '재생 설정',
     application: '애플리케이션 설정',
     network: '네트워크 설정',
+    download: '다운로드 설정',
     system: '시스템 관리',
     donation: '후원 지원',
     about: '정보'
+  },
+  // 기기로의 "다운로드" 저장 위치 설정. 데스크톱의 다운로드 폴더는
+  // "애플리케이션 설정" 페이지에 있으며 이것과는 다른 방식입니다.
+  download: {
+    directoryMode: '다운로드 위치',
+    modeMediaStore: '시스템 음악 라이브러리',
+    modeMediaStoreDesc:
+      '기기의 Music 폴더에 저장되며 시스템 음악 앱과 파일 관리자에서 바로 볼 수 있습니다',
+    modeSaf: '사용자 지정 폴더',
+    modeSafDesc: '직접 선택한 임의의 폴더에 저장합니다',
+    mediaSubDir: '음악 라이브러리 하위 폴더',
+    mediaSubDirDesc: '비워 두면 Music 폴더 바로 아래에 저장합니다',
+    safDirectory: '사용자 지정 폴더',
+    safDirectoryDesc: '시스템 폴더 선택기로 지정하며 권한은 계속 유지됩니다',
+    chooseDirectory: '폴더 선택',
+    resetDirectory: '기본값으로 재설정',
+    noDirectoryChosen: '선택한 폴더가 없습니다',
+    safPermissionLost: '폴더 권한이 만료되었습니다. 다시 선택해 주세요',
+    chooseDirectoryFailed: '폴더 선택기를 열지 못했습니다',
+    locationPreview: '저장 위치',
+    locationPreviewDesc: '다운로드한 오디오와 같은 이름의 가사가 모두 여기에 저장됩니다',
+    oldAndroidHint: 'Android 9 이하 안내',
+    oldAndroidHintDesc:
+      '이 버전은 음악 라이브러리에 저장할 수 없습니다. 첫 다운로드 시 자동으로 사용자 지정 폴더로 전환됩니다'
   },
   basic: {
     themeMode: '테마 모드',

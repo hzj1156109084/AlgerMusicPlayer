@@ -317,6 +317,15 @@ export const loadLrc = async (id: string | number): Promise<ILyric> => {
       } catch (error) {
         console.warn('读取磁盘歌词缓存失败:', error);
       }
+    } else {
+      // 端上：磁盘优先。
+      //
+      // 顺序是刻意的。歌词在这个平台的唯一来源原本是 MusicHook 的 musicDB/music_lyric
+      // 对象仓，而 IndexedDB 在端上丢过记录 —— 音频在磁盘上、歌名在 song-meta.json 里，
+      // 只有歌词会跟着索引一起没，表现成"歌能放、词没有"。所以先问自己落的那份盘，
+      // 拿不到再交给 getMusicLrc（它里面还有 IDB 和网络两层）。
+      lyricData = await audioDiskCache.readCachedLyric(numericId);
+      if (lyricData) console.log(`[lyric] 磁盘命中 songId=${numericId}`);
     }
 
     if (!lyricData) {
@@ -327,6 +336,9 @@ export const loadLrc = async (id: string | number): Promise<ILyric> => {
         void window.electron.ipcRenderer
           .invoke('cache-lyric', numericId, lyricData)
           .catch((error) => console.warn('写入磁盘歌词缓存失败:', error));
+      } else if (lyricData) {
+        // 不 await：播放不该等一次落盘。写失败只意味着"下次离线可能没词"，见 saveCachedLyric。
+        void audioDiskCache.saveCachedLyric(numericId, lyricData);
       }
     }
 

@@ -19,7 +19,13 @@ export default {
     getUrlFailed: 'Failed to get music download URL, please check if logged in',
     noLyric: 'No lyrics available for this song',
     lyricDownloaded: 'Lyrics downloaded successfully',
-    lyricDownloadFailed: 'Failed to download lyrics'
+    lyricDownloadFailed: 'Failed to download lyrics',
+    downloadSaved: 'Saved to {path}',
+    downloadPartialSuccess: 'Download finished: {success} succeeded, {failed} failed',
+    downloadNoDirectory: 'No download folder available, pick one in Settings → Download Settings',
+    downloadOldAndroid:
+      'This Android version cannot save to the music library, please choose a custom folder first',
+    downloadDirectorySet: 'Download folder set to {path}'
   },
   dialog: {
     dislike: {

@@ -72,6 +72,7 @@ const {
   handleArtistClick,
   handleMouseEnter,
   handleMouseLeave,
+  isDownloading,
   downloadMusic,
   downloadLyric
 } = useSongItem(props);
@@ -97,6 +98,11 @@ defineExpose({
   playMusicEvent,
   toggleFavorite,
   handlePlayNext,
+  // 端上四个 *SongItem 的行内下载按钮要调这两个（桌面走右键菜单，用不到）。
+  // useSongItem 一直都返回它们，只是之前没往这里暴露，子组件够不着。
+  downloadMusic,
+  downloadLyric,
+  isDownloading,
   playLoading,
   isPlaying,
   isFavorite,

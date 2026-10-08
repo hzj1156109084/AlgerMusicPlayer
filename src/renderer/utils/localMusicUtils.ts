@@ -1,6 +1,8 @@
 // 本地音乐工具函数
 // 提供格式过滤、元数据 fallback、类型转换、搜索过滤、增量扫描等功能
 
+// 只取类型：import type 会被完全擦除，运行时不会把 Capacitor 依赖拖进这个纯工具模块
+import type { AudioCacheListEntry } from '@/services/audioDiskCache';
 import type { LocalMusicEntry, LocalMusicMeta } from '@/types/localMusic';
 import { SUPPORTED_AUDIO_FORMATS } from '@/types/localMusic';
 import type { ILyric, ILyricText, IWordData, SongResult } from '@/types/music';
@@ -103,6 +105,57 @@ export function parseLrcToILyric(lrcString: string | null): ILyric | null {
 }
 
 /**
+ * 造一个字段齐全的 Artist。
+ *
+ * 播放链路其实只用得到 id/name/picUrl，但 SongResult.ar 的类型要求整份结构，所以把这段
+ * 样板抽出来给「本地音乐」和「已缓存」两条转换路径共用 —— 它们的需求完全一样。
+ */
+const createSongArtist = (name: string, id = 0, picUrl = '') => ({
+  name,
+  id,
+  picId: 0,
+  img1v1Id: 0,
+  briefDesc: '',
+  picUrl,
+  img1v1Url: '',
+  albumSize: 0,
+  alias: [],
+  trans: '',
+  musicSize: 0,
+  topicPerson: 0
+});
+
+/** 同上，为了 al: Album 那份长字面量。Album 类型没有 export，所以这里不标注返回类型。 */
+const createSongAlbum = (name: string, picUrl: string, artistName: string) => ({
+  name,
+  id: 0,
+  type: '',
+  size: 0,
+  picId: 0,
+  blurPicUrl: '',
+  companyId: 0,
+  pic: 0,
+  picUrl,
+  publishTime: 0,
+  description: '',
+  tags: '',
+  company: '',
+  briefDesc: '',
+  artist: createSongArtist(artistName),
+  songs: [],
+  alias: [],
+  status: 0,
+  copyrightId: 0,
+  commentThreadId: '',
+  artists: [],
+  subType: '',
+  transName: null,
+  onSale: false,
+  mark: 0,
+  picId_str: ''
+});
+
+/**
  * 将 LocalMusicEntry 转换为 SongResult，以复用现有播放系统
  * @param entry 本地音乐条目
  * @returns 兼容播放系统的 SongResult 对象
@@ -115,63 +168,8 @@ export function toSongResult(entry: LocalMusicEntry): SongResult {
     id: entry.id,
     name: entry.title,
     picUrl: entry.cover || '/images/default_cover.png',
-    ar: [
-      {
-        name: entry.artist,
-        id: 0,
-        picId: 0,
-        img1v1Id: 0,
-        briefDesc: '',
-        picUrl: '',
-        img1v1Url: '',
-        albumSize: 0,
-        alias: [],
-        trans: '',
-        musicSize: 0,
-        topicPerson: 0
-      }
-    ],
-    al: {
-      name: entry.album,
-      id: 0,
-      type: '',
-      size: 0,
-      picId: 0,
-      blurPicUrl: '',
-      companyId: 0,
-      pic: 0,
-      picUrl: entry.cover || '',
-      publishTime: 0,
-      description: '',
-      tags: '',
-      company: '',
-      briefDesc: '',
-      artist: {
-        name: entry.artist,
-        id: 0,
-        picId: 0,
-        img1v1Id: 0,
-        briefDesc: '',
-        picUrl: '',
-        img1v1Url: '',
-        albumSize: 0,
-        alias: [],
-        trans: '',
-        musicSize: 0,
-        topicPerson: 0
-      },
-      songs: [],
-      alias: [],
-      status: 0,
-      copyrightId: 0,
-      commentThreadId: '',
-      artists: [],
-      subType: '',
-      transName: null,
-      onSale: false,
-      mark: 0,
-      picId_str: ''
-    },
+    ar: [createSongArtist(entry.artist)],
+    al: createSongAlbum(entry.album, entry.cover || '', entry.artist),
     song: {
       artists: [{ name: entry.artist }],
       album: { name: entry.album }
@@ -185,6 +183,59 @@ export function toSongResult(entry: LocalMusicEntry): SongResult {
     lyric: lyric ?? undefined,
     // 本地音乐 URL 不会过期，设置一个极大的过期时间
     createdAt: Date.now(),
+    expiredAt: Date.now() + 365 * 24 * 60 * 60 * 1000
+  };
+}
+
+/**
+ * 将「已缓存」列表的一行转换为 SongResult，以复用现有播放系统。
+ *
+ * 与 toSongResult 的三处关键差异：
+ *
+ * 1. **`source` 保留条目自己的音源，不硬编码 `'netease'`。** 歌单持久化时会丢掉
+ *    playMusicUrl（见 store/modules/playlist.ts 的 minifySong），重启后靠
+ *    `getOfflinePlaybackUrl(songId, source)` 重新命中，而那个索引正是 `songId_source`。
+ *    写死 source 会让重启后的播放找不到这份缓存。
+ * 2. **`playMusicUrl` 必须是内部标记 `local:///...`**，不能是 `_capacitor_file_` 地址 ——
+ *    播放链路里所有「本地文件不过期、出错不清空」的豁免都认这个前缀，理由见
+ *    utils/playableUrl.ts 的注释。
+ * 3. **名字可能缺失。** 条目可能是索引丢失后按文件名重建出来的，那时只有 songId；
+ *    传 fallbackName 让调用方决定怎么显示（列表页会异步回填真名字）。
+ *
+ * @param entry audioDiskCache.list() 返回的一行
+ * @param fallbackName 没有歌名时的降级显示文案
+ */
+export function cacheEntryToSongResult(
+  entry: AudioCacheListEntry,
+  fallbackName?: string
+): SongResult {
+  const artistName = entry.artist || '';
+  const picUrl = entry.picUrl || '';
+  // 有真实歌手列表（回填来的）就用它，让歌手信息尽量完整；否则退回展示串
+  const artists = entry.ar?.length
+    ? entry.ar.map((item) => createSongArtist(item.name, item.id))
+    : [createSongArtist(artistName)];
+
+  return {
+    id: entry.songId,
+    name: entry.title || fallbackName || `#${entry.songId}`,
+    picUrl: picUrl || '/images/default_cover.png',
+    ar: artists,
+    al: createSongAlbum(entry.alName || '', picUrl, artistName),
+    song: {
+      artists: artists.map((item) => ({ name: item.name })),
+      album: { name: entry.alName || '' }
+    },
+    // 内部标记，交给 playableUrl.ts 翻成 WebView 能加载的地址
+    playMusicUrl: entry.url,
+    duration: entry.dt || 0,
+    dt: entry.dt || 0,
+    // SongResult.source 的类型被收窄成了字面量 'netease'，但运行时它承载着各种音源
+    // （history 页就在判 'bilibili'）。这里保留真实值。
+    source: (entry.source || 'netease') as SongResult['source'],
+    count: 0,
+    createdAt: Date.now(),
+    // 缓存是本地文件，不会过期；与本地音乐同样给一个极大的过期时间
     expiredAt: Date.now() + 365 * 24 * 60 * 60 * 1000
   };
 }

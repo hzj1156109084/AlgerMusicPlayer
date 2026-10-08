@@ -79,6 +79,19 @@
             @click.stop="onToggleFavorite"
           ></i>
         </div>
+        <!--
+          端上专属的行内下载入口（桌面走右键菜单）。
+          **刻意不抄旁边那个 `opacity-0: !isHovering` 条件**：触屏上没有 hover，
+          继承那个条件等于这个按钮永远点不到。这里恒显。
+        -->
+        <div
+          v-if="isAndroid"
+          class="song-item-operating-download"
+          :class="{ 'is-downloading': isDownloading }"
+          @click.stop="onDownload"
+        >
+          <i :class="isDownloading ? 'ri-loader-4-line animate-spin' : 'ri-download-line'"></i>
+        </div>
         <div
           class="song-item-operating-play animate__animated"
           :class="{
@@ -109,6 +122,7 @@ import { computed, ref } from 'vue';
 
 import { usePlayerStore } from '@/store';
 import type { SongResult } from '@/types/music';
+import { isAndroid } from '@/utils';
 
 import BaseSongItem from './BaseSongItem.vue';
 
@@ -144,6 +158,8 @@ const playLoading = computed(() => baseItem.value?.playLoading || false);
 const isFavorite = computed(() => baseItem.value?.isFavorite || false);
 const isHovering = computed(() => baseItem.value?.isHovering || false);
 const artists = computed(() => baseItem.value?.artists || []);
+// 每行各建一个 useDownload()，所以这个转圈只转被点的那一行
+const isDownloading = computed(() => baseItem.value?.isDownloading || false);
 
 // 包装方法，避免直接访问可能为undefined的ref
 const onToggleSelect = () => {
@@ -159,6 +175,9 @@ const onPlayMusic = () => {
   emit('play', props.item);
 };
 const onMenuClick = (event: MouseEvent) => baseItem.value?.handleMenuClick(event);
+const onDownload = () => {
+  baseItem.value?.downloadMusic(props.item);
+};
 
 // 从useSongItem.ts导入格式化时长和获取时长方法
 const getDuration = (item: SongResult): number => {
@@ -258,6 +277,21 @@ const formatDuration = (ms: number): string => {
 
       .iconfont {
         @apply text-xl transition text-gray-500 dark:text-gray-400 hover:text-green-500;
+      }
+    }
+
+    // 唯一一个**不**参与 hover 显隐的操作项（触屏上没有 hover，见模板里的说明）。
+    // 图标用 remixicon，刻意不带 iconfont 类（字族冲突，见 StandardSongItem.vue 的说明）。
+    .song-item-operating-download {
+      @apply cursor-pointer flex items-center justify-center px-1;
+
+      i {
+        @apply text-base transition text-gray-500 dark:text-gray-400;
+      }
+
+      &:hover i,
+      &.is-downloading i {
+        @apply text-green-500;
       }
     }
 

@@ -8,9 +8,34 @@ export default {
     playback: '再生設定',
     application: 'アプリケーション設定',
     network: 'ネットワーク設定',
+    download: 'ダウンロード設定',
     system: 'システム管理',
     donation: '寄付サポート',
     about: 'について'
+  },
+  // 端末への「ダウンロード」の保存先設定。デスクトップのダウンロード先は
+  // 「アプリケーション設定」ページにあり、これとは別の仕組み。
+  download: {
+    directoryMode: 'ダウンロード先',
+    modeMediaStore: 'システムの音楽ライブラリ',
+    modeMediaStoreDesc:
+      '端末の Music フォルダに保存され、システムの音楽アプリとファイルマネージャーから見えます',
+    modeSaf: '任意のフォルダ',
+    modeSafDesc: '自分で選んだ任意のフォルダに保存します',
+    mediaSubDir: '音楽ライブラリのサブフォルダ',
+    mediaSubDirDesc: '空欄にすると Music フォルダ直下に保存します',
+    safDirectory: '任意のフォルダ',
+    safDirectoryDesc: 'システムのフォルダ選択で指定します。権限は永続的に保持されます',
+    chooseDirectory: 'フォルダを選択',
+    resetDirectory: '既定に戻す',
+    noDirectoryChosen: 'フォルダが未選択です',
+    safPermissionLost: 'フォルダの権限が失効しました。もう一度選択してください',
+    chooseDirectoryFailed: 'フォルダ選択を開けませんでした',
+    locationPreview: '保存先',
+    locationPreviewDesc: 'ダウンロードした音声と同名の歌詞はここに保存されます',
+    oldAndroidHint: 'Android 9 以下について',
+    oldAndroidHintDesc:
+      'これらのバージョンは音楽ライブラリに保存できません。初回のダウンロード時に自動で任意のフォルダに切り替わります'
   },
   basic: {
     themeMode: 'テーマモード',

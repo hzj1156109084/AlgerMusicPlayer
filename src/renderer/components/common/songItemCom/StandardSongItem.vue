@@ -77,6 +77,20 @@
           </template>
           {{ t('songItem.menu.playNext') }}
         </n-tooltip>
+        <!--
+          端上专属的行内下载入口。桌面不加：那边的右键菜单里已经有同一条，
+          再加一个只会让已经够挤的操作区更挤。
+          门控用 isAndroid 而不是 isElectron/isNativePlatform —— iOS 上后者的判定会让
+          按钮出现、点下去却必然失败（AndroidStoragePlugin 没有 iOS 实现）。
+        -->
+        <div
+          v-if="isAndroid"
+          class="song-item-operating-download"
+          :class="{ 'is-downloading': isDownloading }"
+          @click.stop="onDownload"
+        >
+          <i :class="isDownloading ? 'ri-loader-4-line animate-spin' : 'ri-download-line'"></i>
+        </div>
         <div
           class="song-item-operating-play bg-gray-300 dark:bg-gray-800 animate__animated"
           :class="{ 'bg-green-600': isPlaying, animate__flipInY: playLoading }"
@@ -97,7 +111,7 @@ import { useI18n } from 'vue-i18n';
 
 import { usePlayerStore } from '@/store';
 import type { SongResult } from '@/types/music';
-import { getImgUrl } from '@/utils';
+import { getImgUrl, isAndroid } from '@/utils';
 
 import BaseSongItem from './BaseSongItem.vue';
 
@@ -133,6 +147,8 @@ const isPlaying = computed(() => baseItem.value?.isPlaying || false);
 const playLoading = computed(() => baseItem.value?.playLoading || false);
 const isFavorite = computed(() => baseItem.value?.isFavorite || false);
 const artists = computed(() => baseItem.value?.artists || []);
+// 每行各建一个 useDownload()，所以这个转圈只转被点的那一行
+const isDownloading = computed(() => baseItem.value?.isDownloading || false);
 
 // 包装方法，避免直接访问可能为undefined的ref
 const onToggleSelect = () => {
@@ -149,6 +165,9 @@ const onPlayMusic = () => {
 };
 const onPlayNext = () => {
   baseItem.value?.handlePlayNext();
+};
+const onDownload = () => {
+  baseItem.value?.downloadMusic(props.item);
 };
 </script>
 
@@ -194,6 +213,26 @@ const onPlayNext = () => {
 
       .iconfont {
         @apply text-xl transition text-gray-500 dark:text-gray-400 hover:text-green-500;
+      }
+    }
+
+    // 下载按钮用 remixicon 的图标，刻意**不带** iconfont 类：
+    // 两者都靠 font-family: ... !important 抢字族，同级选择器只由样式表顺序决定胜负，
+    // 叠在一起时哪一个生效是不确定的（见 components/settings/MusicSourceSettings.vue
+    // 里同样只用 remixicon 类的先例）。所以字号也在这里自己给。
+    &-download {
+      @apply mr-2 cursor-pointer transition-all;
+
+      i {
+        @apply text-xl transition text-gray-500 dark:text-gray-400;
+      }
+
+      &:hover i {
+        @apply text-green-500;
+      }
+
+      &.is-downloading i {
+        @apply text-green-500;
       }
     }
 

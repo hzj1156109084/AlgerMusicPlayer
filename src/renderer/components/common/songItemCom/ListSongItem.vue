@@ -69,6 +69,15 @@
             @click.stop="onToggleFavorite"
           ></i>
         </div>
+        <!-- 端上专属的行内下载入口（桌面走右键菜单），门控说明见 StandardSongItem.vue -->
+        <div
+          v-if="isAndroid"
+          class="song-item-operating-list-download"
+          :class="{ 'is-downloading': isDownloading }"
+          @click.stop="onDownload"
+        >
+          <i :class="isDownloading ? 'ri-loader-4-line animate-spin' : 'ri-download-line'"></i>
+        </div>
         <div
           class="song-item-operating-list-play bg-gray-300 dark:bg-gray-800 animate__animated"
           :class="{ 'bg-green-600': isPlaying, animate__flipInY: playLoading }"
@@ -88,7 +97,7 @@ import { computed, ref } from 'vue';
 
 import { usePlayerStore } from '@/store';
 import type { SongResult } from '@/types/music';
-import { getImgUrl } from '@/utils';
+import { getImgUrl, isAndroid } from '@/utils';
 
 import BaseSongItem from './BaseSongItem.vue';
 
@@ -123,6 +132,8 @@ const isPlaying = computed(() => baseItem.value?.isPlaying || false);
 const playLoading = computed(() => baseItem.value?.playLoading || false);
 const isFavorite = computed(() => baseItem.value?.isFavorite || false);
 const artists = computed(() => baseItem.value?.artists || []);
+// 每行各建一个 useDownload()，所以这个转圈只转被点的那一行
+const isDownloading = computed(() => baseItem.value?.isDownloading || false);
 
 // 包装方法，避免直接访问可能为undefined的ref
 const onToggleSelect = () => {
@@ -137,6 +148,9 @@ const onToggleFavorite = (event: Event) => {
 const onPlayMusic = () => {
   baseItem.value?.playMusicEvent(props.item);
   emit('play', props.item);
+};
+const onDownload = () => {
+  baseItem.value?.downloadMusic(props.item);
 };
 </script>
 
@@ -243,6 +257,28 @@ const onPlayMusic = () => {
         color: white;
       }
     }
+
+    /* 图标用 remixicon，刻意不带 iconfont 类（字族冲突，见 StandardSongItem.vue 的说明） */
+    &-download {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+
+      i {
+        font-size: 1rem; /* text-base */
+        transition-property: color;
+        transition-duration: 0.15s;
+        color: rgb(107 114 128); /* text-gray-500 */
+      }
+
+      &:hover i {
+        color: rgb(34 197 94); /* text-green-500 */
+      }
+
+      &.is-downloading i {
+        color: rgb(34 197 94);
+      }
+    }
   }
 }
 
@@ -266,6 +302,10 @@ const onPlayMusic = () => {
   }
 
   .song-item-operating-list-like .iconfont {
+    color: rgb(156 163 175); /* dark:text-gray-400 */
+  }
+
+  .song-item-operating-list-download i {
     color: rgb(156 163 175); /* dark:text-gray-400 */
   }
 }

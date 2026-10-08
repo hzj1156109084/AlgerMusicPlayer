@@ -8,9 +8,31 @@ export default {
     playback: '播放設定',
     application: '應用程式設定',
     network: '網路設定',
+    download: '下載設定',
     system: '系統管理',
     donation: '捐贈支持',
     about: '關於'
+  },
+  // 端上「下載到裝置」的落點設定。桌面的下載目錄在「應用程式設定」頁裡，跟這裡不是同一套。
+  download: {
+    directoryMode: '下載位置',
+    modeMediaStore: '系統音樂庫',
+    modeMediaStoreDesc: '儲存到裝置的 Music 目錄，系統音樂 App 與檔案管理員都能直接看到',
+    modeSaf: '自訂目錄',
+    modeSafDesc: '儲存到你自己選擇的任意目錄',
+    mediaSubDir: '音樂庫子目錄',
+    mediaSubDirDesc: '留空則直接放在 Music 目錄下',
+    safDirectory: '自訂目錄',
+    safDirectoryDesc: '透過系統目錄選擇器指定，授權長期有效',
+    chooseDirectory: '選擇目錄',
+    resetDirectory: '恢復預設',
+    noDirectoryChosen: '尚未選擇目錄',
+    safPermissionLost: '目錄授權已失效，請重新選擇',
+    chooseDirectoryFailed: '開啟目錄選擇器失敗',
+    locationPreview: '儲存位置',
+    locationPreviewDesc: '下載的音訊與同名歌詞都會儲存到這裡',
+    oldAndroidHint: '關於 Android 9 及以下',
+    oldAndroidHintDesc: '這些系統不支援儲存到音樂庫，首次下載時會自動切換到自訂目錄'
   },
   basic: {
     themeMode: '主題模式',

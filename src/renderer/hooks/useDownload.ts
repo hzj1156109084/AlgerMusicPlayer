@@ -4,9 +4,15 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { getMusicLrc } from '@/api/music';
+import {
+  downloadLyricToDevice,
+  downloadSongToDevice,
+  type NativeDownloadOutcome,
+  switchToCustomDirectory} from '@/services/nativeDownload';
 import { getSongUrl } from '@/store/modules/player';
 import type { SongResult } from '@/types/music';
-import { isElectron } from '@/utils';
+import { isAndroid, isElectron } from '@/utils';
+import { mergeLrcWithTranslation } from '@/utils/lrc';
 
 const ipcRenderer = isElectron ? window.electron.ipcRenderer : null;
 
@@ -152,6 +158,80 @@ export const useDownload = () => {
   downloadManager.initEventListeners(message, t);
 
   /**
+   * 与桌面 `downloadMusic` 逐字一致的去重键（也是 baseName 的来源）。
+   * 模块级的 downloadManager 是按它去重的，两端共用一套。
+   */
+  const songFileKey = (song: SongResult) =>
+    `${song.name} - ${(song.ar || song.song?.artists)?.map((a) => a.name).join(',')}`;
+
+  /**
+   * 把「下载到设备」的失败码翻成用户能看懂的话，并处理两种要「先改配置」的情况。
+   * 只用于 downloadMusic 这种单首场景；批量下载只统计成败，逐首弹提示会刷屏。
+   */
+  const reportDeviceDownloadFailure = async (outcome: Extract<NativeDownloadOutcome, { ok: false }>) => {
+    switch (outcome.code) {
+      case 'no_directory':
+        message.error(t('songItem.message.downloadNoDirectory'));
+        return;
+      case 'unsupported_api_level': {
+        // API < 29 没有 RELATIVE_PATH，音乐库模式是死的。顺手切到自定义目录并把系统
+        // 目录选择器拉起来 —— 别指望用户自己去设置页找（他多半也不知道要找什么）。
+        const label = await switchToCustomDirectory();
+        if (label) message.success(t('songItem.message.downloadDirectorySet', { path: label }));
+        else message.warning(t('songItem.message.downloadOldAndroid'));
+        return;
+      }
+      case 'no_lyric':
+        message.warning(t('songItem.message.noLyric'));
+        return;
+      case 'no_url':
+        message.error(t('songItem.message.getUrlFailed'));
+        return;
+      default:
+        message.error(outcome.message || t('songItem.message.downloadFailed'));
+    }
+  };
+
+  /**
+   * 端上分支。与桌面那条最大的不同是**这里是同步等完的**：isDownloading 反映真实耗时，
+   * 而不是桌面那个「发个 IPC 再 2 秒后复位」的假动作。
+   */
+  const downloadMusicToDevice = async (song: SongResult) => {
+    const filename = songFileKey(song);
+
+    if (downloadManager.hasDownload(filename)) {
+      message.warning(t('songItem.message.downloading'));
+      return;
+    }
+
+    downloadManager.addDownload(filename);
+    isDownloading.value = true;
+    try {
+      const outcome = await downloadSongToDevice(song);
+
+      if (outcome.ok) {
+        // displayPath 是这个功能在设备上**唯一**能自查落点的地方（手机连不上电脑、
+        // 用不了 chrome://inspect），所以必须显示出来
+        message.success(t('songItem.message.downloadSaved', { path: outcome.result.displayPath }));
+        if (!outcome.result.lyricSaved) {
+          // 纯音乐、离线拿不到歌词都会走到这。不影响音频已经落地，只记一笔，
+          // 不弹提示 —— 一首没人唱的歌弹「歌词失败」只会让人以为坏了。
+          console.warn('[download] 歌词未一并保存:', outcome.result.fileName);
+        }
+        return;
+      }
+
+      await reportDeviceDownloadFailure(outcome);
+    } catch (error: any) {
+      console.error('Download error:', error);
+      message.error(error?.message || t('songItem.message.downloadFailed'));
+    } finally {
+      isDownloading.value = false;
+      downloadManager.removeDownload(filename);
+    }
+  };
+
+  /**
    * 下载单首音乐
    * @param song 歌曲信息
    * @returns Promise<void>
@@ -159,6 +239,13 @@ export const useDownload = () => {
   const downloadMusic = async (song: SongResult) => {
     if (isDownloading.value) {
       message.warning(t('songItem.message.downloading'));
+      return;
+    }
+
+    // 端上 window.electron 是 undefined，下面那条主进程链路一行都跑不了。
+    // 之前它只是静默空转、还弹一句「已加入下载队列」的假成功提示。
+    if (isAndroid) {
+      await downloadMusicToDevice(song);
       return;
     }
 
@@ -211,6 +298,70 @@ export const useDownload = () => {
   };
 
   /**
+   * 端上批量下载。
+   *
+   * **顺序执行，不并行**：并发打 CDN 不礼貌，而这里的瓶颈几乎全在网络（原生复制本身很快），
+   * 并行也就省不下多少时间。逐首弹提示会刷屏，所以只在最后汇总一次。
+   */
+  const batchDownloadMusicToDevice = async (songs: SongResult[]) => {
+    isDownloading.value = true;
+    message.success(t('favorite.downloading'));
+
+    let successCount = 0;
+    let failCount = 0;
+    let noDirectory = false;
+
+    try {
+      for (const song of songs) {
+        const filename = songFileKey(song);
+
+        // 同一批里重名（两首歌同名同歌手）的直接跳过，和桌面同样的去重语义
+        if (downloadManager.hasDownload(filename)) {
+          failCount++;
+          continue;
+        }
+
+        downloadManager.addDownload(filename);
+        try {
+          const outcome = await downloadSongToDevice(song);
+          if (outcome.ok) {
+            successCount++;
+          } else {
+            failCount++;
+            // 目的地本身有问题（没选目录 / 授权失效）时，后面每一首都会以同样的理由失败。
+            // 记下来，结束后给一句能对症的提示，而不是干巴巴的「下载失败」。
+            if (outcome.code === 'no_directory' || outcome.code === 'unsupported_api_level') {
+              noDirectory = true;
+            }
+          }
+        } catch (error) {
+          console.error(`下载 ${song.name} 失败:`, error);
+          failCount++;
+        } finally {
+          downloadManager.removeDownload(filename);
+        }
+      }
+
+      if (successCount === 0 && failCount === 0) return;
+      if (failCount === 0) {
+        message.success(t('favorite.downloadSuccess'));
+      } else if (successCount === 0) {
+        message.error(
+          noDirectory
+            ? t('songItem.message.downloadNoDirectory')
+            : t('favorite.downloadFailed')
+        );
+      } else {
+        message.warning(
+          t('songItem.message.downloadPartialSuccess', { success: successCount, failed: failCount })
+        );
+      }
+    } finally {
+      isDownloading.value = false;
+    }
+  };
+
+  /**
    * 批量下载音乐
    * @param songs 歌曲列表
    * @returns Promise<void>
@@ -223,6 +374,13 @@ export const useDownload = () => {
 
     if (songs.length === 0) {
       message.warning(t('favorite.selectSongsFirst'));
+      return;
+    }
+
+    // 端上：收藏页 / 搜索结果 / 歌单页那三个批量下载按钮本来就没有平台门控，
+    // 接了这条分支它们就自动开始工作了（之前是静默空转 + 一句假的成功提示）。
+    if (isAndroid) {
+      await batchDownloadMusicToDevice(songs);
       return;
     }
 
@@ -308,6 +466,23 @@ export const useDownload = () => {
    * @param song 歌曲信息
    */
   const downloadLyric = async (song: SongResult) => {
+    // 端上走原生落盘（桌面是主进程写文件）。独立于 downloadMusic：单存一份歌词
+    // 是个合理诉求，不该被"这首歌有没有音频地址"绑住。
+    if (isAndroid) {
+      try {
+        const outcome = await downloadLyricToDevice(song);
+        if (outcome.ok) {
+          message.success(t('songItem.message.lyricDownloaded'));
+          return;
+        }
+        await reportDeviceDownloadFailure(outcome);
+      } catch (error: any) {
+        console.error('Download lyric error:', error);
+        message.error(t('songItem.message.lyricDownloadFailed'));
+      }
+      return;
+    }
+
     try {
       const res = await getMusicLrc(song.id as number);
       const lyricData = res?.data;
@@ -347,47 +522,3 @@ export const useDownload = () => {
     batchDownloadMusic
   };
 };
-
-/**
- * 将原文歌词和翻译歌词合并为一个 LRC 字符串
- */
-function mergeLrcWithTranslation(originalText: string, translationText: string): string {
-  const originalMap = parseLrcText(originalText);
-  const translationMap = parseLrcText(translationText);
-
-  const mergedLines: string[] = [];
-
-  for (const [timeTag, content] of originalMap.entries()) {
-    mergedLines.push(`${timeTag}${content}`);
-    const translated = translationMap.get(timeTag);
-    if (translated) {
-      mergedLines.push(`${timeTag}${translated}`);
-    }
-  }
-
-  // 按时间排序
-  mergedLines.sort((a, b) => {
-    const ta = a.match(/\[\d{2}:\d{2}(\.\d{1,3})?\]/)?.[0] || '';
-    const tb = b.match(/\[\d{2}:\d{2}(\.\d{1,3})?\]/)?.[0] || '';
-    return ta.localeCompare(tb);
-  });
-
-  return mergedLines.join('\n');
-}
-
-/**
- * 解析 LRC 文本为 Map<timeTag, content>
- */
-function parseLrcText(text: string): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const line of text.split('\n')) {
-    const tags = line.match(/\[\d{2}:\d{2}(\.\d{1,3})?\]/g);
-    if (!tags) continue;
-    const content = line.replace(/\[\d{2}:\d{2}(\.\d{1,3})?\]/g, '').trim();
-    if (!content) continue;
-    for (const tag of tags) {
-      map.set(tag, content);
-    }
-  }
-  return map;
-}

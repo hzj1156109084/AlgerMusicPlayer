@@ -81,9 +81,10 @@
           <div class="w-40 max-md:w-32">
             <n-progress type="line" :percentage="diskCacheUsagePercent" />
           </div>
-          <!-- 端上只缓存音乐，不缓存歌词（歌词另有 musicDB 持久化），
-               这里显示「歌词 0 首」会让人误以为坏了，所以只在桌面显示这一行明细 -->
-          <span v-if="isElectron" class="text-xs text-neutral-500">
+          <!-- 两侧都给：端上原本不缓存歌词（歌词另有 musicDB 持久化），显示「歌词 0 份」
+               只会让人以为坏了，所以当初只留给桌面。现在端上歌词也落盘了，数字是真的，
+               而且它是「离线到底有没有词」在设备上唯一能直接看到的地方。 -->
+          <span class="text-xs text-neutral-500">
             {{
               t('settings.system.cacheStatusDetail', {
                 musicCount: diskCacheStats.musicFiles,
@@ -102,6 +103,10 @@
     >
       <template #action>
         <div class="flex items-center gap-2 max-md:flex-wrap">
+          <!-- 端上缓存是"能听什么"的唯一答案，值得在管理缓存的地方给个入口 -->
+          <s-btn v-if="isNative" @click="router.push('/cached')">
+            {{ t('cached.viewCached') }}
+          </s-btn>
           <s-btn
             :variant="isElectron ? 'default' : 'danger'"
             @click="clearDiskCacheByScope('music')"
@@ -148,6 +153,7 @@ import { Capacitor } from '@capacitor/core';
 import { useDebounceFn } from '@vueuse/core';
 import { computed, inject, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import localData from '@/../main/set.json';
 import ClearCacheSettings from '@/components/settings/ClearCacheSettings.vue';
@@ -192,6 +198,7 @@ type SwitchCacheDirectoryResult = {
 };
 
 const { t } = useI18n();
+const router = useRouter();
 const userStore = useUserStore();
 const setData = inject(SETTINGS_DATA_KEY)!;
 const message = inject(SETTINGS_MESSAGE_KEY)!;

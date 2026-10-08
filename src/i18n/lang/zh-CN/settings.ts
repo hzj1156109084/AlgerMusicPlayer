@@ -8,9 +8,31 @@ export default {
     playback: '播放设置',
     application: '应用设置',
     network: '网络设置',
+    download: '下载设置',
     system: '系统管理',
     donation: '捐赠支持',
     about: '关于'
+  },
+  // 端上「下载到设备」的落点设置。桌面的下载目录在「应用设置」页里，跟这里不是一套。
+  download: {
+    directoryMode: '下载位置',
+    modeMediaStore: '系统音乐库',
+    modeMediaStoreDesc: '保存到设备的 Music 目录，系统音乐 App 与文件管理器都能直接看到',
+    modeSaf: '自定义目录',
+    modeSafDesc: '保存到你自己选择的任意目录',
+    mediaSubDir: '音乐库子目录',
+    mediaSubDirDesc: '留空则直接放在 Music 目录下',
+    safDirectory: '自定义目录',
+    safDirectoryDesc: '通过系统目录选择器指定，授权长期有效',
+    chooseDirectory: '选择目录',
+    resetDirectory: '恢复默认',
+    noDirectoryChosen: '尚未选择目录',
+    safPermissionLost: '目录授权已失效，请重新选择',
+    chooseDirectoryFailed: '打开目录选择器失败',
+    locationPreview: '保存位置',
+    locationPreviewDesc: '下载的音频与同名歌词都会保存到这里',
+    oldAndroidHint: '关于 Android 9 及以下',
+    oldAndroidHintDesc: '这些系统不支持保存到音乐库，首次下载时会自动切换到自定义目录'
   },
   basic: {
     themeMode: '主题模式',

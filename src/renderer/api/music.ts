@@ -6,7 +6,7 @@ import request from '@/utils/request';
 
 import { MusicParser, type MusicParseResult } from './musicParser';
 
-const { addData, getData, deleteData } = musicDB;
+const { getData, saveData } = musicDB;
 
 // 将 FM 歌曲移至垃圾桶（不喜欢）
 export const fmTrash = (id: number) => {
@@ -78,12 +78,17 @@ export const getMusicLrc = async (id: number) => {
     // 获取新的歌词数据
     const res = await request.get<ILyric>('/lyric/new', { params: { id } });
 
-    // 只有在成功获取新数据后才删除旧缓存并添加新缓存
     if (res?.data) {
-      if (cachedLyric) {
-        await deleteData('music_lyric', id);
+      // put 而不是 add。原先这里是「先 delete 再 add」，而 add 撞已存在的键会抛
+      // ConstraintError —— 同一首歌连发两次播放请求时（真机日志里确实出现过），
+      // 两个调用都会走到这里，后一个必然失败。更糟的是这行原来没有 await，
+      // 失败会变成 unhandled rejection：歌词就此静默丢掉，没有任何界面提示。
+      // put 是幂等的，前后顺序不再重要；await 保证失败至少被这里记一笔。
+      try {
+        await saveData('music_lyric', { id, data: res.data, createTime: Date.now() });
+      } catch (error) {
+        console.warn('缓存歌词到 IndexedDB 失败:', error);
       }
-      addData('music_lyric', { id, data: res.data, createTime: Date.now() });
     }
 
     return res;

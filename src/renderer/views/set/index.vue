@@ -50,6 +50,10 @@
           <system-tab />
         </div>
 
+        <div v-show="currentSection === 'download'" class="animate-fade-in">
+          <download-tab />
+        </div>
+
         <div v-show="currentSection === 'about'" class="animate-fade-in">
           <about-tab />
         </div>
@@ -83,6 +87,7 @@ import AboutTab from './tabs/AboutTab.vue';
 import ApplicationTab from './tabs/ApplicationTab.vue';
 import BasicTab from './tabs/BasicTab.vue';
 import DonationTab from './tabs/DonationTab.vue';
+import DownloadTab from './tabs/DownloadTab.vue';
 import NetworkTab from './tabs/NetworkTab.vue';
 import PlaybackTab from './tabs/PlaybackTab.vue';
 import SystemTab from './tabs/SystemTab.vue';
@@ -147,6 +152,9 @@ const settingSections: SettingSectionConfig[] = [
   { id: 'playback' },
   { id: 'application', platforms: ['electron'] },
   { id: 'network', platforms: ['electron'] },
+  // 端上「下载到设备」的落点设置。桌面不用它：那边的下载目录在「应用」页里
+  // （set.downloadPath + 系统文件选择对话框），跟这里的 MediaStore/SAF 是两套东西。
+  { id: 'download', platforms: ['native'] },
   // 端上也要能查看/清空音频缓存，所以「系统」页对两端都开放。
   // 页内 Electron 专属的行（缓存目录选择、重启等）由 SystemTab 自己单独守卫。
   { id: 'system', platforms: ['electron', 'native'] },

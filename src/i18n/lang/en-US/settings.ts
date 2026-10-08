@@ -8,9 +8,34 @@ export default {
     playback: 'Playback Settings',
     application: 'Application Settings',
     network: 'Network Settings',
+    download: 'Download Settings',
     system: 'System Management',
     donation: 'Donation',
     about: 'About'
+  },
+  // Where "download to device" puts files on Android. The desktop download folder
+  // lives on the Application Settings page and is a different mechanism entirely.
+  download: {
+    directoryMode: 'Download Location',
+    modeMediaStore: 'System Music Library',
+    modeMediaStoreDesc:
+      'Saved to the device Music folder, visible to the system music app and file manager',
+    modeSaf: 'Custom Folder',
+    modeSafDesc: 'Saved to any folder you pick yourself',
+    mediaSubDir: 'Music Library Subfolder',
+    mediaSubDirDesc: 'Leave empty to save directly in the Music folder',
+    safDirectory: 'Custom Folder',
+    safDirectoryDesc: 'Chosen with the system folder picker; access is granted permanently',
+    chooseDirectory: 'Choose Folder',
+    resetDirectory: 'Reset to Default',
+    noDirectoryChosen: 'No folder chosen yet',
+    safPermissionLost: 'Folder access has been revoked, please choose again',
+    chooseDirectoryFailed: 'Failed to open the folder picker',
+    locationPreview: 'Save Location',
+    locationPreviewDesc: 'Downloaded audio and its matching lyrics both go here',
+    oldAndroidHint: 'About Android 9 and older',
+    oldAndroidHintDesc:
+      'These versions cannot save to the music library; the first download switches to a custom folder automatically'
   },
   basic: {
     themeMode: 'Theme Mode',

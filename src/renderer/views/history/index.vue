@@ -596,7 +596,11 @@ const loadHistoryData = async () => {
             // 本地歌曲直接使用历史记录中的数据
             return item as SongResult;
           }
-          return neteaseSongs.find((song) => song.id === item.id);
+          // 详情拿不到时（离线、接口出错、歌曲已下架）回退到历史里存着的那份 SongResult。
+          // 封面和名字可能旧一点，但总好过整段历史在断网时变成空白 —— 而"断网时我听过什么"
+          // 恰恰是这个页面最该回答的问题。
+          const detail = neteaseSongs.find((song) => song.id === item.id);
+          return (detail || item) as SongResult;
         })
         .filter((song): song is SongResult => !!song);
 

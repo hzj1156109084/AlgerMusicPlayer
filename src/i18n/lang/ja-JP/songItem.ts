@@ -20,7 +20,14 @@ export default {
       '音楽ダウンロードアドレスの取得に失敗しました。ログインしているか確認してください',
     noLyric: 'この楽曲には歌詞がありません',
     lyricDownloaded: '歌詞のダウンロードが完了しました',
-    lyricDownloadFailed: '歌詞のダウンロードに失敗しました'
+    lyricDownloadFailed: '歌詞のダウンロードに失敗しました',
+    downloadSaved: '{path} に保存しました',
+    downloadPartialSuccess: 'ダウンロード完了：成功 {success} 曲、失敗 {failed} 曲',
+    downloadNoDirectory:
+      '利用できるダウンロード先がありません。「設定 → ダウンロード設定」で選択してください',
+    downloadOldAndroid:
+      'OS バージョンが古く音楽ライブラリに保存できません。先に任意のフォルダを選択してください',
+    downloadDirectorySet: 'ダウンロード先を {path} に設定しました'
   },
   dialog: {
     dislike: {

@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { computed } from 'vue';
 
 import { useSettingsStore } from '@/store/modules/settings';
@@ -73,6 +74,24 @@ export const formatNumber = (num: string | number) => {
   return num.toString();
 };
 
+/**
+ * 把字节数格式化成可读体积。
+ *
+ * 注意：SystemTab / DownloadPage / UpdateModal 里各有一份功能相同但**小数位与单位表都不
+ * 一样**的局部实现，所以那些没有合并过来 —— 合并会改变它们现有界面的显示。新代码用这个。
+ */
+export const formatFileSize = (bytes: number): string => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
+};
+
 export const getImgUrl = (url: string | undefined, size: string = '') => {
   if (!url) return '';
 
@@ -94,6 +113,15 @@ export const isMobile = computed(() => {
 });
 
 export const isElectron = (window as any).electron !== undefined;
+
+/**
+ * 端上（Android）而不是「Capacitor 原生平台」。
+ *
+ * 刻意不用 `Capacitor.isNativePlatform()`：iOS 上它是 true，但下载落点靠的是
+ * AndroidStoragePlugin，那份实现只有 Android 侧有，iOS 上调用必然 reject。
+ * 用 getPlatform() 能把「按钮该不该出现」和「点了能不能用」绑成同一个判断。
+ */
+export const isAndroid = Capacitor.getPlatform() === 'android';
 
 export const isLyricWindow = computed(() => {
   return window.location.hash.includes('lyric');

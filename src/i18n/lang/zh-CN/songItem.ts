@@ -19,7 +19,12 @@ export default {
     getUrlFailed: '获取音乐下载地址失败，请检查是否登录',
     noLyric: '该歌曲暂无歌词',
     lyricDownloaded: '歌词下载成功',
-    lyricDownloadFailed: '歌词下载失败'
+    lyricDownloadFailed: '歌词下载失败',
+    downloadSaved: '已保存到 {path}',
+    downloadPartialSuccess: '下载完成：成功 {success} 首，失败 {failed} 首',
+    downloadNoDirectory: '还没有可用的下载目录，请到「设置 → 下载设置」里选一个',
+    downloadOldAndroid: '系统版本过低，无法保存到音乐库，请先选择自定义目录',
+    downloadDirectorySet: '下载目录已设为 {path}'
   },
   dialog: {
     dislike: {
